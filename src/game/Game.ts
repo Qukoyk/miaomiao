@@ -130,9 +130,17 @@ export class Game {
       this.returnToMenu();
     });
 
+    document.getElementById('btn-mobile-menu')!.addEventListener('click', () => {
+      this.returnToMenu();
+    });
+
+    // 点击开始游戏 - 移动端直接开始，桌面端需要锁定鼠标
     document.addEventListener('click', () => {
-      if (this.state === GameState.PLAYING && !this.player.isLocked()) {
-        this.player.lock();
+      if (this.state === GameState.PLAYING) {
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (!isMobile && !this.player.isLocked()) {
+          this.player.lock();
+        }
       }
     });
 
