@@ -66,6 +66,9 @@ export class Player {
         this.moveBackward = z > 0.3;
         this.moveLeft = x < -0.3;
         this.moveRight = x > 0.3;
+        // 修正：z 轴标决定前后方向
+        this.moveForward = z < -0.3;
+        this.moveBackward = z > 0.3;
       });
     }
 
