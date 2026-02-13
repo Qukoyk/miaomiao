@@ -65,19 +65,23 @@ npm run build
 
 ### 部署方式
 
-#### GitHub Pages 自动部署（推荐）
+#### GitHub Pages 部署
 
-修改代码后，只需执行：
+**在线访问地址**: https://qukoyk.github.io/miaomiao/
+
+修改代码后，需要执行以下步骤更新 GitHub Pages：
 
 ```bash
+# 1. 提交代码到 main 分支
 git add .
 git commit -m "更新说明"
 git push
+
+# 2. 部署到 gh-pages 分支（重要！）
+npm run deploy
 ```
 
-GitHub Actions 会自动构建并部署到 GitHub Pages。
-
-**在线访问地址**: https://qukoyk.github.io/miaomiao/
+> **注意**：只执行 `git push` 不会更新 GitHub Pages，必须运行 `npm run deploy` 才能将更改部署到线上。
 
 ---
 
