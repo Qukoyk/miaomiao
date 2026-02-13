@@ -338,10 +338,11 @@ export class Player {
       // 根据相机朝向计算实际移动方向
       const sin = Math.sin(this.cameraYaw);
       const cos = Math.cos(this.cameraYaw);
-      // W朝相机看的方向，A/D分别是左/右
-      // 注意：moveZ 是屏幕坐标（y 向上为负），需要取反才能得到正确的前后方向
-      const worldMoveX = -moveZ * sin - moveX * cos;
-      const worldMoveZ = -(-moveZ) * cos + moveX * sin;
+      // 摇杆向上（moveZ < 0）应该朝镜头方向前进
+      // 相机前向向量: (-sin, -cos)，右向向量: (cos, -sin)
+      // 世界移动 = 前向 * (-moveZ) + 右向 * moveX
+      const worldMoveX = -moveZ * sin + moveX * cos;
+      const worldMoveZ = -moveZ * cos - moveX * sin;
 
       // 归一化
       const length = Math.sqrt(worldMoveX * worldMoveX + worldMoveZ * worldMoveZ);
