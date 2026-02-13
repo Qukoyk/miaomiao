@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Build output (will be deployed to gh-pages branch)
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/

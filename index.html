@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>苗苗捉迷藏</title>
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- 游戏菜单 -->
+      <div id="menu" class="menu-container">
+        <h1 class="game-title">苗苗捉迷藏</h1>
+
+        <div class="mode-selection">
+          <h2>选择你的角色</h2>
+
+          <button id="btn-hider" class="mode-btn hider-btn">
+            <div class="btn-icon">🏃</div>
+            <div class="btn-text">当逃离者</div>
+            <div class="btn-desc">躲避鬼的追捕，被抓住3次才会淘汰！队友可以救援被关押的同伴。</div>
+          </button>
+
+          <button id="btn-ghost" class="mode-btn ghost-btn">
+            <div class="btn-icon">👻</div>
+            <div class="btn-text">当鬼</div>
+            <div class="btn-desc">追捕逃离者，接触3次才能抓住！被抓住的逃离者会被关押。</div>
+          </button>
+        </div>
+
+        <div class="instructions">
+          <h3>操作说明</h3>
+          <ul>
+            <li>WASD - 移动</li>
+            <li>Shift - 冲刺</li>
+            <li>鼠标 - 视角</li>
+            <li>点击画面 - 锁定鼠标</li>
+            <li>ESC - 解锁鼠标</li>
+          </ul>
+          <h3>游戏规则</h3>
+          <ul>
+            <li>鬼需要接触逃离者3次才能抓住</li>
+            <li>被抓住的逃离者会被关押在固定位置</li>
+            <li>队友在关押处停留10秒可救援</li>
+            <li>被抓住3次的逃离者淘汰出局</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 游戏画布 -->
+      <canvas id="game-canvas"></canvas>
+
+      <!-- HUD -->
+      <div id="hud" class="hud hidden">
+        <div class="hud-time">
+          <span class="label">剩余时间</span>
+          <span id="time-display">5:00</span>
+        </div>
+        <div id="hiders-status" class="hud-status hidden">
+          <span class="label">逃离者</span>
+          <span id="hiders-count">0/5</span>
+        </div>
+        <div id="capture-progress" class="hud-status hidden">
+          <span class="label">抓捕进度</span>
+          <span id="capture-count">0/3</span>
+        </div>
+        <div id="rescue-progress" class="hud-status hidden">
+          <span class="label">救援进度</span>
+          <span id="rescue-count">0.0/10.0</span>
+        </div>
+        <div id="jail-status" class="hud-status hidden">
+          <span class="label">关押人数</span>
+          <span id="jail-count">0</span>
+        </div>
+      </div>
+
+      <!-- 游戏结束界面 -->
+      <div id="game-over" class="game-over hidden">
+        <div class="result">
+          <h2 id="result-title"></h2>
+          <p id="result-message"></p>
+        </div>
+        <button id="btn-restart">再来一局</button>
+        <button id="btn-menu">返回菜单</button>
+      </div>
+
+      <!-- 点击提示 -->
+      <div id="click-prompt" class="click-prompt hidden">
+        点击画面开始游戏
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
