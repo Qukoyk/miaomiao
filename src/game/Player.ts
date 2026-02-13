@@ -338,9 +338,10 @@ export class Player {
       // 根据相机朝向计算实际移动方向
       const sin = Math.sin(this.cameraYaw);
       const cos = Math.cos(this.cameraYaw);
-      // 摇杆向上（moveZ < 0）应该朝镜头看向的方向前进（远离相机）
-      const worldMoveX = -moveZ * sin + moveX * cos;
-      const worldMoveZ = -moveZ * cos - moveX * sin;
+      // 摇杆向上（moveZ > 0）→ 前进（远离摄像机）
+      // 摇杆向下（moveZ < 0）→ 后退（朝摄像机方向）
+      const worldMoveX = moveZ * sin + moveX * cos;
+      const worldMoveZ = moveZ * cos - moveX * sin;
 
       // 归一化
       const length = Math.sqrt(worldMoveX * worldMoveX + worldMoveZ * worldMoveZ);
