@@ -134,12 +134,13 @@ export class Game {
       this.returnToMenu();
     });
 
-    // 点击开始游戏 - 移动端直接开始，桌面端需要锁定鼠标
+    // 点击开始游戏 - 仅桌面端需要点击锁定，移动端直接进入游戏
     document.addEventListener('click', () => {
       if (this.state === GameState.PLAYING) {
         const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
         if (!isMobile && !this.player.isLocked()) {
           this.player.lock();
+          this.clickPrompt.classList.add('hidden');
         }
       }
     });

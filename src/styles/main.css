@@ -405,3 +405,10 @@ body {
     justify-content: center;
   }
 }
+
+/* Hide click prompt on mobile devices */
+@media (max-width: 768px) {
+  #click-prompt {
+    display: none !important;
+  }
+}
