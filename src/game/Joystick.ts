@@ -99,7 +99,7 @@ export class Joystick {
    * 获取当前移动输入
    */
   public getInput(): { x: number; z: number } {
-    return { x: this.moveX, z: this.moveZ };
+    return { x: this.moveX, z: -this.moveZ };
   }
 
   /**
