@@ -1,15 +1,17 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
 import { World } from './World';
+import { Joystick } from './Joystick';
 
 /**
- * Player - 第三人称玩家控制器
+ * Player - 第三称玩家控制器
  */
 export class Player {
   private camera: THREE.PerspectiveCamera;
   private controls: PointerLockControls;
   private world: World;
   private mesh: THREE.Group;
+  private joystick: Joystick | null = null;
 
   // 移动状态
   private moveForward = false;
@@ -48,6 +50,16 @@ export class Player {
 
     // 使用 PointerLockControls 但我们会覆盖相机位置
     this.controls = new PointerLockControls(camera, document.body);
+
+    // 检测是否为移动端，如果是则初始化虚拟摇杆
+    if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+      this.joystick = new Joystick((x, z) => {
+        this.moveForward = z < -0.3;
+        this.moveBackward = z > 0.3;
+        this.moveLeft = x < -0.3;
+        this.moveRight = x > 0.3;
+      });
+    }
 
     this.setupEventListeners();
   }
@@ -241,14 +253,21 @@ export class Player {
 
     const speed = (this.isSprinting ? this.sprintSpeed : this.walkSpeed) * delta;
 
-    // 计算移动方向
+    // 计算移动方向 - 优先使用摇杆输入
     let moveX = 0;
     let moveZ = 0;
 
-    if (this.moveForward) moveZ -= 1;
-    if (this.moveBackward) moveZ += 1;
-    if (this.moveLeft) moveX -= 1;
-    if (this.moveRight) moveX += 1;
+    if (this.joystick && this.joystick.isActive()) {
+      const input = this.joystick.getInput();
+      moveX = input.x;
+      moveZ = input.z;
+    } else {
+      // 键盘输入
+      if (this.moveForward) moveZ -= 1;
+      if (this.moveBackward) moveZ += 1;
+      if (this.moveLeft) moveX -= 1;
+      if (this.moveRight) moveX += 1;
+    }
 
     if (moveX !== 0 || moveZ !== 0) {
       // 根据相机朝向计算实际移动方向

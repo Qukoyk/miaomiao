@@ -275,3 +275,106 @@ body {
 .hidden {
   display: none !important;
 }
+
+/* Mobile Support */
+@media screen and (orientation: portrait) {
+  #app::before {
+    content: "请将设备横屏使用";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 20px 40px;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 1.5rem;
+  }
+}
+
+/* Virtual Joystick */
+#joystick {
+  position: fixed;
+  bottom: 40px;
+  left: 40px;
+  width: 120px;
+  height: 120px;
+  z-index: 100;
+  display: none;
+}
+
+#joystick.active {
+  display: block;
+}
+
+#joystick-base {
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  position: relative;
+}
+
+#joystick-handle {
+  position: absolute;
+  width: 50px;
+  height: 50px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Mobile HUD adjustments */
+@media (max-width: 768px) {
+  .hud {
+    top: 10px;
+    padding: 10px 15px;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .hud .label {
+    font-size: 0.6rem;
+  }
+
+  #time-display {
+    font-size: 1.2rem;
+  }
+
+  .hud-status {
+    font-size: 0.7rem;
+    padding: 8px 12px;
+  }
+
+  .menu-container {
+    width: 95%;
+    padding: 20px;
+  }
+
+  .game-over {
+    width: 90%;
+  }
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+  #joystick {
+    display: block;
+  }
+
+  .hud {
+    left: 20px;
+    transform: none;
+  }
+
+  .instructions li:nth-child(n+4) {
+    display: none;
+  }
+}

@@ -41,7 +41,7 @@
           <ul>
             <li>鬼需要接触逃离者3次才能抓住</li>
             <li>被抓住的逃离者会被关押在固定位置</li>
-            <li>队友在关押处停留10秒可救援</li>
+            <li>队友在关押处停留5秒可救援</li>
             <li>被抓住3次的逃离者淘汰出局</li>
           </ul>
         </div>
@@ -66,7 +66,7 @@
         </div>
         <div id="rescue-progress" class="hud-status hidden">
           <span class="label">救援进度</span>
-          <span id="rescue-count">0.0/10.0</span>
+          <span id="rescue-count">0.0/5.0</span>
         </div>
         <div id="jail-status" class="hud-status hidden">
           <span class="label">关押人数</span>
@@ -87,6 +87,13 @@
       <!-- 点击提示 -->
       <div id="click-prompt" class="click-prompt hidden">
         点击画面开始游戏
+      </div>
+
+      <!-- 虚拟摇杆 -->
+      <div id="joystick">
+        <div id="joystick-base">
+          <div id="joystick-handle"></div>
+        </div>
       </div>
     </div>
 
