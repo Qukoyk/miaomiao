@@ -339,8 +339,9 @@ export class Player {
       const sin = Math.sin(this.cameraYaw);
       const cos = Math.cos(this.cameraYaw);
       // W朝相机看的方向，A/D分别是左/右
+      // 注意：moveZ 是屏幕坐标（y 向上为负），需要取反才能得到正确的前后方向
       const worldMoveX = -moveZ * sin - moveX * cos;
-      const worldMoveZ = -moveZ * cos + moveX * sin;
+      const worldMoveZ = -(-moveZ) * cos + moveX * sin;
 
       // 归一化
       const length = Math.sqrt(worldMoveX * worldMoveX + worldMoveZ * worldMoveZ);
