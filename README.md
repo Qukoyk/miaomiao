@@ -89,9 +89,66 @@ npm run build
 
 部署选项：
 - **Nginx/Apache**: 将 `dist` 文件夹内容复制到 web 服务器根目录
-- **GitHub Pages**: 将 `dist` 内容推送到 gh-pages 分支
+- **GitHub Pages**: 将 `dist` 内容推送到 gh-pages 分支（见下方说明）
 - **Vercel/Netlify**: 直接连接 Git 仓库或拖放 `dist` 文件夹
 - **Python 简易服务器**: `python -m http.server 8080 --directory dist`
+
+---
+
+### 方法四：GitHub Pages 部署
+
+在线访问地址：https://qukoyk.github.io/miaomiao/
+
+#### 首次部署
+
+1. 在 GitHub 创建仓库
+2. 推送代码到 main 分支
+3. 执行以下命令部署到 gh-pages 分支：
+
+```bash
+# 构建项目
+npm run build
+
+# 部署到 gh-pages 分支
+cd dist
+rm -rf .git
+git init
+git config user.email "你的邮箱"
+git config user.name "你的用户名"
+git add .
+git commit -m "Deploy to GitHub Pages"
+git branch -M gh-pages
+git remote add origin git@github.com:你的用户名/miaomiao.git
+git push origin gh-pages --force
+cd ..
+```
+
+4. 在 GitHub 仓库设置中：Settings → Pages → Source 选择 `gh-pages` 分支
+
+#### 后续更新部署
+
+修改代码后，重新部署：
+
+```bash
+# 1. 推送代码到 main 分支
+git add .
+git commit -m "更新说明"
+git push origin main
+
+# 2. 重新构建并部署到 gh-pages
+npm run build
+cd dist
+rm -rf .git
+git init
+git config user.email "你的邮箱"
+git config user.name "你的用户名"
+git add .
+git commit -m "Deploy to GitHub Pages"
+git branch -M gh-pages
+git remote add origin git@github.com:你的用户名/miaomiao.git
+git push origin gh-pages --force
+cd ..
+```
 
 ---
 
