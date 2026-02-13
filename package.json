@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "start": "vite preview --host"
+    "start": "vite preview --host",
+    "deploy": "npm run build && cd dist && rm -rf .git && git init && git config user.email \"qukoyk@users.noreply.github.com\" && git config user.name \"Qukoyk\" && git add . && git commit -m \"Deploy to GitHub Pages\" && git branch -M gh-pages && git remote add origin git@github.com:Qukoyk/miaomiao.git && git push origin gh-pages --force"
   },
   "dependencies": {
     "three": "^0.160.0"
