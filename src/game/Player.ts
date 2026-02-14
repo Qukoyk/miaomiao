@@ -327,9 +327,9 @@ export class Player {
       moveX = input.x;
       moveZ = input.z;
     } else {
-      // 键盘输入
-      if (this.moveForward) moveZ -= 1;
-      if (this.moveBackward) moveZ += 1;
+      // 键盘输入（符号与摇杆一致：moveZ > 0 前进，moveZ < 0 后退）
+      if (this.moveForward) moveZ += 1;
+      if (this.moveBackward) moveZ -= 1;
       if (this.moveLeft) moveX -= 1;
       if (this.moveRight) moveX += 1;
     }
