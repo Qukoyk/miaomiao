@@ -32,6 +32,9 @@ body {
   backdrop-filter: blur(10px);
   max-width: 600px;
   width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .game-title {
@@ -347,6 +350,42 @@ body {
   .menu-container {
     width: 95%;
     padding: 20px;
+    max-height: 85vh;
+  }
+
+  .game-title {
+    font-size: 2rem;
+    margin-bottom: 15px;
+  }
+
+  .mode-selection h2 {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+  }
+
+  .mode-btn {
+    padding: 15px 20px;
+    margin: 10px 0;
+  }
+
+  .btn-icon {
+    font-size: 2rem;
+  }
+
+  .btn-text {
+    font-size: 1.1rem;
+  }
+
+  .btn-desc {
+    font-size: 0.8rem;
+  }
+
+  .instructions h3 {
+    font-size: 1rem;
+  }
+
+  .instructions li {
+    font-size: 0.85rem;
   }
 
   .game-over {
