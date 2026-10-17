@@ -56,9 +56,19 @@ describe('MatchRules 抓捕与关押', () => {
     expect(rules.tryContact(1, false)).toBeNull()
     expect(hider.contactCount).toBe(1)
 
-    rules.tick(1.01)
+    rules.tick(RULES.contactCooldown + 0.01)
     expect(rules.tryContact(1, false)).not.toBeNull()
     expect(hider.contactCount).toBe(2)
+  })
+
+  it('命中后进入擦刀后摇，冷却结束前无法再次接触', () => {
+    const rules = makeRules()
+    rules.countdown = 0
+    rules.tryContact(1, false)
+    rules.tick(RULES.contactCooldown - 0.1)
+    expect(rules.canContact(1)).toBe(false)
+    rules.tick(0.2)
+    expect(rules.canContact(1)).toBe(true)
   })
 
   it('救援后当前星星清零，但累计关押次数保留', () => {

@@ -39,6 +39,7 @@ export class GhostAI {
   private lungeX = 0
   private lungeZ = 1
   private lungeRecoverTimer = 0
+  private hitRecoveryTimer = 0
 
   constructor(assets: SharedAssets, world: World) {
     this.world = world
@@ -80,12 +81,22 @@ export class GhostAI {
     this.perception.addNoise(x, z, radius, source)
   }
 
-  notifyHit(): void {
+  get canAttack(): boolean {
+    return this.hitRecoveryTimer <= 0
+  }
+
+  get isRecovering(): boolean {
+    return this.hitRecoveryTimer > 0
+  }
+
+  /** 命中后的擦刀后摇：无法再次攻击，移动速度下降。 */
+  onHitLanded(): void {
+    this.hitRecoveryTimer = RULES.contactCooldown
+    this.character.playHit()
     if (this.lungePhase === 'dash') {
       this.lungePhase = 'recover'
-      this.lungeRecoverTimer = 0.45
+      this.lungeRecoverTimer = RULES.aiGhost.lungeStun
       this.lungeTimer = 0
-      this.character.playHit()
     }
   }
 
@@ -102,6 +113,7 @@ export class GhostAI {
   update(dt: number, elapsed: number, targets: GhostTarget[]): void {
     this.perception.update(dt)
     this.lungeCooldown = Math.max(0, this.lungeCooldown - dt)
+    this.hitRecoveryTimer = Math.max(0, this.hitRecoveryTimer - dt)
 
     if (this.lungePhase !== 'none') {
       this.updateLunge(dt, elapsed)
@@ -215,6 +227,7 @@ export class GhostAI {
     )
 
     if (
+      this.canAttack &&
       this.lungeCooldown <= 0 &&
       distance >= RULES.aiGhost.lungeRangeMin &&
       distance <= RULES.aiGhost.lungeRangeMax &&
@@ -309,14 +322,15 @@ export class GhostAI {
       this.repathTimer = RULES.aiGhost.pathInterval
     }
 
-    const result = this.follower.follow(dt, this.character.x, this.character.z, speed, this.world.collision)
+    const effectiveSpeed = speed * (this.hitRecoveryTimer > 0 ? RULES.ghostHitRecoverySpeed : 1)
+    const result = this.follower.follow(dt, this.character.x, this.character.z, effectiveSpeed, this.world.collision)
     if (result.stuck) {
       this.follower.clear()
       this.repathTimer = 0
     }
     if (result.moved) {
       this.character.setPosition(result.x, result.z)
-      this.character.setMove(result.dx, result.dz, speed, speed > 4.5)
+      this.character.setMove(result.dx, result.dz, effectiveSpeed, effectiveSpeed > 4.5)
     } else {
       this.character.setMove(0, 0, 0, false)
     }
@@ -327,6 +341,7 @@ export class GhostAI {
   }
 
   private startLunge(targetX: number, targetZ: number): void {
+    if (!this.canAttack) return
     const dx = targetX - this.character.x
     const dz = targetZ - this.character.z
     const length = Math.hypot(dx, dz)

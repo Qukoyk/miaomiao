@@ -29,6 +29,7 @@ export class HiderAI {
   private lastGoalX = Infinity
   private lastGoalZ = Infinity
   private roamTimer = 0
+  private speedBoostTimer = 0
   private hideSpotX = 0
   private hideSpotZ = 0
   private hasHideSpot = false
@@ -56,6 +57,10 @@ export class HiderAI {
     return this.follower.hasPath
   }
 
+  get isSpeedBoosted(): boolean {
+    return this.speedBoostTimer > 0
+  }
+
   get pathTarget(): { x: number; z: number } | null {
     return this.follower.currentTarget
   }
@@ -69,6 +74,7 @@ export class HiderAI {
   }
 
   update(dt: number, elapsed: number, context: HiderContext): void {
+    this.speedBoostTimer = Math.max(0, this.speedBoostTimer - dt)
     if (this.record.state !== 'free') {
       this.crouching = false
       this.character.setCrouch(false)
@@ -222,12 +228,17 @@ export class HiderAI {
     this.follow(dt, RULES.aiHider.walkSpeed, false)
   }
 
+  grantSpeedBoost(): void {
+    this.speedBoostTimer = RULES.hiderHitBoostSeconds
+  }
+
   private follow(dt: number, speed: number, running: boolean): void {
+    const effectiveSpeed = speed * (this.speedBoostTimer > 0 ? RULES.hiderHitBoostSpeed : 1)
     const result = this.follower.follow(
       dt,
       this.character.x,
       this.character.z,
-      speed,
+      effectiveSpeed,
       this.world.collision
     )
     if (result.stuck) {
@@ -236,7 +247,7 @@ export class HiderAI {
     }
     if (result.moved) {
       this.character.setPosition(result.x, result.z)
-      this.character.setMove(result.dx, result.dz, speed, running)
+      this.character.setMove(result.dx, result.dz, effectiveSpeed, running)
     } else {
       this.character.setMove(0, 0, 0, false)
     }

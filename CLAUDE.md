@@ -59,15 +59,15 @@ npm run deploy:redesign  # 构建并推送 dist/ 到 gh-pages-redesign（不碰 
 - `scene/CollisionWorld.ts`：2D AABB/圆碰撞、线段视线、相机避障。
 - `scene/NavGrid.ts`：0.5m 网格 + A* + 路径拉直；出生点/藏点/关押槽的可达性由测试覆盖。
 - `ai/Perception.ts`：鬼视野/遮挡、听觉事件、AI 逃离者对鬼的感知。
-- `ai/GhostAI.ts`：巡逻 → 调查 → 追击 → 扑击；目标是玩家与 AI 逃离者的并集。
+- `ai/GhostAI.ts`：巡逻 → 调查 → 追击 → 扑击；目标是玩家与 AI 逃离者的并集；命中后进入擦刀后摇并减速。
 - `ai/HiderAI.ts`：救援 > 逃跑 > 躲藏/游走；藏点选择会避开鬼附近；寻路失败有回退。
 - `ai/PathFollower.ts`：路径跟随、轴分离碰撞、侧移与卡住检测。
 
 ### 角色
 
-- `entities/CharacterModel.ts`：程序化角色几何体、配饰与动画。关节层级为 hips → spine → chest → neck → head，手臂含肩/肘/腕，腿含髋/膝/踝；角色构造末尾会把每个动画关节内部静态网格按材质合并。头发（ponytail）、裙摆（skirt）、配饰、围巾、背包保留独立组做二次运动。`animate()` 接收 `CharacterMotion`（speed/moving/turnRate），程序化生成 idle/walk/run/crouch/jail/rescue/lunge/hit 姿态，并处理眨眼。新增角色网格时优先加到对应关节组。
+- `entities/CharacterModel.ts`：程序化人偶角色。头部包含精修的脸型、发际线、中分刘海、侧发、眼睛/虹膜/高光、眉毛、鼻子、嘴与腮红；身体、手臂、腿、鞋袜和配饰独立构建。构造末尾会把每个动画组内部的静态网格按材质合并。`animate()` 程序化生成 idle/walk/run/crouch/jail/rescue/lunge/hit 姿态。
 - `entities/Character.ts`：把 `HiderRecord` 与模型连接，处理朝向、动画状态、受击/扑击/关押/出局。
-- `entities/PlayerController.ts`：相机相对移动、体力、蹲下、鬼的扑击、被关押时的呼救。
+- `entities/PlayerController.ts`：相机相对移动、体力、蹲下、鬼的扑击、命中后擦刀减速、受击加速、被关押时的呼救。
 - `entities/StatusBillboard.ts`：头顶 3 星星 + 3 关押绳结；纹理在角色 dispose 时释放。
 
 ### UI / 音频 / 后处理
@@ -77,7 +77,7 @@ npm run deploy:redesign  # 构建并推送 dist/ 到 gh-pages-redesign（不碰 
 - `ui/icons.ts` / `ui/art.ts`：内联 SVG 图标与角色/地图插画；禁用 emoji 和外部字体。
 - `fx/Audio.ts`：WebAudio 程序化音乐盒旋律、音效、心跳；首次用户手势后启动；静音存 `localStorage`。
 - `fx/PostFX.ts`：仅高画质启用 Bloom；中/低画质直接渲染。
-- `fx/CameraRig.ts`：第三人称越肩偏移、阻尼、2D 避障、FOV、震动。
+- `fx/CameraRig.ts`：第三人称阻尼、2D 避障、FOV、震动。
 - `fx/Particles.ts`：池化 Sprite 粒子。
 
 ### 性能约定
@@ -93,12 +93,12 @@ npm run deploy:redesign  # 构建并推送 dist/ 到 gh-pages-redesign（不碰 
 - Y 向上，地面 XZ 平面。
 - 地图边界：站台 `|x|<=33, |z|<=25`；游乐园 `|x|<=37, |z|<=29`；庄园 `|x|<=39, |z|<=31`。
 - 关押区：站台 `(-27,-14.5)`；游乐园 `(-30,-22)`；庄园 `(-32,-25)`；半径 4，开向 +x。
-- 游戏时长 300 秒；5 名逃离者；单轮 3 次接触；累计 3 次关押出局；救援 5 秒；接触/扑击判定 1.0/1.15；接触冷却 1 秒。
+- 游戏时长 300 秒；5 名逃离者；单轮 3 次接触；累计 3 次关押出局；救援 5 秒；接触/扑击判定 1.0/1.15；命中后 2.4 秒擦刀后摇（移速 55%）；未关押的受击逃离者获得 2.2 秒 1.5 倍加速。
 - 速度：玩家逃离者走 4.2 / 冲刺 6.8；AI 逃离者走 3.8 / 跑 5.9；AI 鬼巡逻 3.8 / 调查 4.8 / 追击 6.4 / 扑击 11.5；玩家鬼走 4.4 / 冲刺 6.8。
 
 ## 调试
 
-`?debug=1` 后 `window.__mm` 提供：`start`、`pause`、`menu`、`getState`、`getSession`、`getHud`、`getPlayer`、`getHiders`、`getGhost`、`getAIStates`、`getRendererInfo`、`forceContact`、`forceRescue`、`setTime`、`step`、`teleport`、`teleportGhost`、`setCameraYaw`。
+`?debug=1` 后 `window.__mm` 提供：`start`、`pause`、`menu`、`getState`、`getSession`、`getHud`、`getPlayer`、`getHiders`、`getGhost`、`getAIStates`、`getRendererInfo`、`forceContact`、`forceRescue`、`setTime`、`setTimeScale`、`step`、`teleport`、`teleportGhost`、`setCameraYaw`、`getCameraLook`、`look`。
 
 其他参数：`map=station|park|manor`、`mode=hider|ghost`、`seed=...`、`timeScale=...`、`mobile=1|0`、`autostart=1`。
 

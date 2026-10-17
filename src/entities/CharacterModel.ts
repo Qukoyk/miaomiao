@@ -1,9 +1,8 @@
 import * as THREE from 'three'
-import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
-import type { MaterialOptions, SharedAssets } from '../core/Disposal'
+import type { SharedAssets } from '../core/Disposal'
 import { COLORS, GHOST_PALETTE, HIDER_PALETTES } from '../config/theme'
-import { clamp, damp } from '../utils/math'
+import { damp } from '../utils/math'
 
 export type HiderPalette = (typeof HIDER_PALETTES)[number]
 
@@ -18,144 +17,54 @@ export type AnimState =
   | 'hit'
   | 'eliminated'
 
-export interface CharacterMotion {
-  speed: number
-  moving: boolean
-  turnRate: number
-}
-
 /**
  * 程序化角色模型。
- * 关节：pelvis → spine → chest → neck → head；肩/肘/腕；髋/膝/踝。
- * 直接挂在关节上的静态网格会按材质合并；头发、裙摆、配饰保留独立组做二次运动。
+ * 结构：group（世界位置）→ model（下蹲/缩小）→ hips（躯干、头、手臂）+ 腿。
  */
 export class CharacterModel {
   readonly group = new THREE.Group()
   readonly model = new THREE.Group()
-
   readonly hips = new THREE.Group()
-  readonly spine = new THREE.Group()
-  readonly chest = new THREE.Group()
-  readonly neck = new THREE.Group()
   readonly headPivot = new THREE.Group()
-
   readonly armLeft = new THREE.Group()
   readonly armRight = new THREE.Group()
-  readonly elbowLeft = new THREE.Group()
-  readonly elbowRight = new THREE.Group()
-  readonly wristLeft = new THREE.Group()
-  readonly wristRight = new THREE.Group()
-
-  readonly thighLeft = new THREE.Group()
-  readonly thighRight = new THREE.Group()
-  readonly kneeLeft = new THREE.Group()
-  readonly kneeRight = new THREE.Group()
-  readonly ankleLeft = new THREE.Group()
-  readonly ankleRight = new THREE.Group()
-
-  readonly skirt = new THREE.Group()
-  readonly ponytail = new THREE.Group()
-  readonly eyeGroup = new THREE.Group()
-  readonly accessory = new THREE.Group()
-  readonly scarfTail = new THREE.Group()
-  readonly backpack = new THREE.Group()
+  readonly legLeft = new THREE.Group()
+  readonly legRight = new THREE.Group()
   readonly statusAnchor = new THREE.Object3D()
 
   private readonly assets: SharedAssets
   private readonly isGhost: boolean
-  private readonly skin: number
-  private readonly hair: number
-  private readonly hairLight: number
-  private readonly shirt: number
-  private readonly accent: number
-  private readonly shoes: number
-  private readonly socks: number
-  private readonly iris: number
-
   private shadowMaterial!: THREE.MeshBasicMaterial
   private shadow!: THREE.Mesh
   private crouching = false
   private eliminatedProgress = 0
-  private readonly baseHipsY = 0.78
+  private baseHipsY = 0.78
   private readonly mergedGeometries: THREE.BufferGeometry[] = []
-
-  private blinkTimer = 2.4
-  private blinkRemaining = 0
-  private readonly pose = {
-    hipX: 0,
-    hipY: 0.78,
-    hipZ: 0,
-    spineX: 0,
-    spineY: 0,
-    spineZ: 0,
-    chestX: 0,
-    chestY: 0,
-    chestZ: 0,
-    neckX: 0,
-    neckY: 0,
-    headX: 0,
-    headY: 0,
-    headZ: 0,
-    armLX: 0,
-    armLY: 0,
-    armLZ: 0.08,
-    armRX: 0,
-    armRY: 0,
-    armRZ: -0.08,
-    elbowLX: 0.16,
-    elbowRX: 0.16,
-    wristLX: 0,
-    wristRX: 0,
-    thighLX: 0,
-    thighRX: 0,
-    thighLZ: 0.03,
-    thighRZ: -0.03,
-    kneeLX: 0.05,
-    kneeRX: 0.05,
-    ankleLX: 0,
-    ankleRX: 0,
-    skirtX: 0,
-    skirtZ: 0,
-    skirtFlare: 1,
-    ponytailX: 0,
-    ponytailZ: 0,
-    accessoryX: 0,
-    accessoryZ: 0,
-    scarfX: 0,
-    scarfZ: 0,
-    backpackX: 0,
-    backpackZ: 0
-  }
 
   constructor(assets: SharedAssets, palette: HiderPalette, isGhost: boolean) {
     this.assets = assets
     this.isGhost = isGhost
-    this.skin = isGhost ? GHOST_PALETTE.skin : 0xffe2c8
-    this.hair = isGhost ? GHOST_PALETTE.hair : palette.hair
-    this.hairLight = isGhost ? 0x7a5a4a : this.lighten(palette.hair, 0.22)
-    this.shirt = isGhost ? GHOST_PALETTE.dress : palette.shirt
-    this.accent = isGhost ? GHOST_PALETTE.dressLight : palette.accent
-    this.shoes = isGhost ? 0x9a5f70 : COLORS.woodDark
-    this.socks = isGhost ? 0xffe7ee : COLORS.paper
-    this.iris = isGhost ? 0x6e4c8e : this.lighten(palette.hair, 0.2)
 
     this.group.add(this.model)
-    this.buildHierarchy()
+    this.model.add(this.hips)
+    this.hips.position.y = this.baseHipsY
     this.buildShadow()
-    this.buildBody()
-    this.buildHead()
-    this.buildArms()
-    this.buildLegs()
-    this.buildSkirt()
-    this.buildPonytail()
-    if (!isGhost) this.buildAccessory(palette.accessory)
-    this.mergeAll()
-    this.statusAnchor.position.set(0, 2.42, 0)
-    this.group.add(this.statusAnchor)
-  }
 
-  get isEliminated(): boolean {
-    return this.eliminatedProgress >= 1
+    const shirt = isGhost ? GHOST_PALETTE.dress : palette.shirt
+    const accent = isGhost ? GHOST_PALETTE.dressLight : palette.accent
+    const skin = isGhost ? GHOST_PALETTE.skin : 0xffe4c4
+    const hair = isGhost ? GHOST_PALETTE.hair : palette.hair
+
+    this.buildLegs(skin, isGhost)
+    this.buildTorso(shirt, accent)
+    this.buildHead(skin, hair, accent)
+    this.buildArms(skin, shirt)
+    this.buildAccessory(palette.accessory, accent, isGhost)
+
+
+    this.statusAnchor.position.set(0, 2.38, 0)
+    this.group.add(this.statusAnchor)
+    this.mergeAnimatedGroups()
   }
 
   setCrouch(active: boolean): void {
@@ -163,283 +72,114 @@ export class CharacterModel {
   }
 
   setEliminated(progress: number): void {
-    this.eliminatedProgress = clamp(progress, 0, 1)
+    this.eliminatedProgress = Math.min(1, Math.max(0, progress))
     const scale = Math.max(0.001, 1 - this.eliminatedProgress)
     this.model.scale.setScalar(scale)
     this.shadow.visible = this.eliminatedProgress < 0.6
     if (this.eliminatedProgress >= 1) this.group.visible = false
   }
 
-  animate(
-    state: AnimState,
-    elapsed: number,
-    dt: number,
-    motion: CharacterMotion = { speed: 0, moving: false, turnRate: 0 }
-  ): void {
+  get isEliminated(): boolean {
+    return this.eliminatedProgress >= 1
+  }
+
+  animate(state: AnimState, elapsed: number, dt: number): void {
     if (this.isEliminated) return
-    const p = this.pose
-    const base = this.baseHipsY
-    const speed = Math.max(0, motion.speed)
-    const turn = clamp(motion.turnRate, -4, 4)
-    const run = state === 'run'
 
-    p.hipX = 0
-    p.hipY = base
-    p.hipZ = 0
-    p.spineX = 0
-    p.spineY = 0
-    p.spineZ = 0
-    p.chestX = 0
-    p.chestY = 0
-    p.chestZ = 0
-    p.neckX = 0
-    p.neckY = 0
-    p.headX = 0
-    p.headY = 0
-    p.headZ = 0
-    p.armLX = 0
-    p.armLY = 0
-    p.armLZ = 0.08
-    p.armRX = 0
-    p.armRY = 0
-    p.armRZ = -0.08
-    p.elbowLX = 0.24
-    p.elbowRX = 0.24
-    p.wristLX = 0
-    p.wristRX = 0
-    p.thighLX = 0
-    p.thighRX = 0
-    p.thighLZ = 0.03
-    p.thighRZ = -0.03
-    p.kneeLX = 0.05
-    p.kneeRX = 0.05
-    p.ankleLX = 0
-    p.ankleRX = 0
-    p.skirtX = 0
-    p.skirtZ = 0
-    p.skirtFlare = 1
-    p.ponytailX = 0
-    p.ponytailZ = 0
-    p.accessoryX = 0
-    p.accessoryZ = 0
-    p.scarfX = 0
-    p.scarfZ = 0
-    p.backpackX = 0
-    p.backpackZ = 0
+    const target = {
+      hipsX: 0,
+      hipsY: this.baseHipsY,
+      headX: 0,
+      headY: 0,
+      armLX: 0,
+      armRX: 0,
+      armLZ: this.isGhost ? 0.25 : 0.08,
+      armRZ: this.isGhost ? -0.25 : -0.08,
+      legLX: 0,
+      legRX: 0,
+      modelY: 0
+    }
 
-    if (state === 'walk' || state === 'run') {
-      const phase = elapsed * (run ? 11.5 : 7.2)
-      const s = Math.sin(phase)
-      const stride = (run ? 0.8 : 0.52) * (0.55 + clamp(speed / (run ? 6.8 : 4.2), 0, 1) * 0.45)
-      const armSwing = run ? 0.72 : 0.42
-
-      p.hipY = base + Math.abs(Math.sin(phase * 2)) * (run ? 0.045 : 0.022)
-      p.hipZ = s * (run ? 0.06 : 0.03) + turn * 0.012
-      p.spineX = (run ? 0.15 : 0.05) + speed * 0.004
-      p.spineY = -s * (run ? 0.1 : 0.06)
-      p.chestX = run ? 0.04 : 0.015
-      p.chestY = s * (run ? 0.14 : 0.08)
-      p.chestZ = -turn * 0.012
-      p.headX = -p.spineX * 0.45
-      p.headY = s * 0.035 + clamp(turn * 0.08, -0.28, 0.28)
-      p.thighLX = -s * stride
-      p.thighRX = s * stride
-      p.kneeLX = 0.06 + Math.max(0, -s) * (run ? 1.0 : 0.65)
-      p.kneeRX = 0.06 + Math.max(0, s) * (run ? 1.0 : 0.65)
-      p.ankleLX = s * 0.16
-      p.ankleRX = -s * 0.16
-      p.armLX = s * armSwing
-      p.armRX = -s * armSwing
-      p.armLZ = 0.1 + Math.abs(s) * 0.03
-      p.armRZ = -0.1 - Math.abs(s) * 0.03
-      p.elbowLX = 0.14 + Math.max(0, -s) * (run ? 0.6 : 0.28)
-      p.elbowRX = 0.14 + Math.max(0, s) * (run ? 0.6 : 0.28)
-      p.skirtX = -p.spineX * 0.25 + Math.sin(phase * 2) * 0.02
-      p.skirtZ = -s * (run ? 0.05 : 0.025)
-      p.skirtFlare = 1 + (run ? 0.12 : 0.05)
-      p.ponytailX = -0.04 - speed * 0.012 + Math.sin(phase - 0.6) * 0.035
-      p.ponytailZ = -turn * 0.035 + Math.cos(phase * 0.5) * 0.02
-      p.accessoryX = Math.sin(phase - 0.5) * 0.035
-      p.accessoryZ = -turn * 0.03
-      p.scarfX = speed * 0.02 + Math.sin(phase - 0.8) * 0.04
-      p.scarfZ = -turn * 0.04
-      p.backpackX = Math.sin(phase * 2 + 0.4) * 0.025
-      p.backpackZ = -turn * 0.02
-    } else if (state === 'idle') {
+    if (state === 'idle') {
       const breath = Math.sin(elapsed * 2.1)
-      const sway = Math.sin(elapsed * 0.7)
-      p.hipY = base + breath * 0.008
-      p.hipX = sway * 0.012
-      p.hipZ = sway * 0.012
-      p.spineX = 0.018 + breath * 0.006
-      p.spineZ = -sway * 0.012
-      p.chestX = -breath * 0.008
-      p.chestZ = sway * 0.01
-      p.neckY = Math.sin(elapsed * 0.45) * 0.04
-      p.headX = Math.sin(elapsed * 1.1) * 0.018
-      p.headY = Math.sin(elapsed * 0.42) * 0.1 + clamp(turn * 0.09, -0.3, 0.3)
-      p.headZ = sway * 0.012
-      p.armLX = -0.04 + breath * 0.035 + sway * 0.02
-      p.armRX = -0.04 + breath * 0.035 - sway * 0.02
-      p.armLZ = 0.09 + Math.abs(sway) * 0.02
-      p.armRZ = -0.09 - Math.abs(sway) * 0.02
-      p.elbowLX = 0.24 + breath * 0.02
-      p.elbowRX = 0.24 - breath * 0.02
-      p.thighLZ = 0.03 + sway * 0.01
-      p.thighRZ = -0.03 + sway * 0.01
-      p.skirtX = breath * 0.012
-      p.skirtZ = sway * 0.015
-      p.ponytailX = Math.sin(elapsed * 1.3) * 0.03
-      p.ponytailZ = sway * 0.03
-      p.accessoryX = Math.sin(elapsed * 1.4) * 0.025
-      p.accessoryZ = sway * 0.02
-      p.scarfX = Math.sin(elapsed * 1.1) * 0.025
-      p.backpackX = breath * 0.01
+      target.hipsY = this.baseHipsY + breath * 0.012
+      target.headY = Math.sin(elapsed * 1.3) * 0.04
+      target.armLX = Math.sin(elapsed * 1.7) * 0.05
+      target.armRX = Math.cos(elapsed * 1.6) * 0.05
+    } else if (state === 'walk' || state === 'run') {
+      const speed = state === 'run' ? 12 : 8
+      const amplitude = state === 'run' ? 0.75 : 0.48
+      const cycle = Math.sin(elapsed * speed)
+      target.hipsX = state === 'run' ? 0.1 : 0.04
+      target.hipsY = this.baseHipsY + Math.abs(cycle) * (state === 'run' ? 0.045 : 0.025)
+      target.armLX = cycle * amplitude
+      target.armRX = -cycle * amplitude
+      target.legLX = -cycle * (state === 'run' ? 0.85 : 0.55)
+      target.legRX = cycle * (state === 'run' ? 0.85 : 0.55)
+      target.headY = Math.sin(elapsed * speed * 0.5) * 0.03
     } else if (state === 'crouch') {
-      p.hipY = base - 0.2 + Math.sin(elapsed * 2) * 0.006
-      p.hipX = 0.12
-      p.spineX = 0.26
-      p.chestX = 0.08
-      p.neckX = -0.08
-      p.headX = -0.02
-      p.headY = Math.sin(elapsed * 0.8) * 0.05
-      p.thighLX = -0.95
-      p.thighRX = -0.95
-      p.kneeLX = 1.25
-      p.kneeRX = 1.25
-      p.ankleLX = -0.35
-      p.ankleRX = -0.35
-      p.armLX = -0.25
-      p.armRX = -0.25
-      p.elbowLX = 0.75
-      p.elbowRX = 0.75
-      p.skirtX = 0.2
-      p.ponytailX = 0.06
-      p.ponytailZ = Math.sin(elapsed * 1.4) * 0.025
-      p.accessoryX = 0.05
+      target.modelY = -0.24
+      target.hipsX = 0.18
+      target.legLX = 0.55
+      target.legRX = -0.35
+      target.armLX = -0.4
+      target.armRX = -0.4
+      target.headX = -0.08
     } else if (state === 'jail') {
-      p.hipY = base - 0.34 + Math.sin(elapsed * 1.2) * 0.005
-      p.hipX = -0.12
-      p.spineX = -0.06
-      p.chestX = -0.1
-      p.headX = 0.16
-      p.headY = Math.sin(elapsed * 0.9) * 0.08
-      p.thighLX = -1.4
-      p.thighRX = -1.4
-      p.kneeLX = 0.65
-      p.kneeRX = 0.65
-      p.ankleLX = 0.2
-      p.ankleRX = 0.2
-      p.armLX = 0.15
-      p.armRX = 0.15
-      p.elbowLX = 0.6
-      p.elbowRX = 0.6
-      p.skirtX = -0.1
-      p.ponytailX = 0.04
-      p.ponytailZ = Math.sin(elapsed * 1.1) * 0.03
-      p.accessoryX = 0.02
+      target.modelY = -0.18
+      target.hipsX = -0.12
+      target.legLX = -1.1
+      target.legRX = -1.1
+      target.armLX = -0.2
+      target.armRX = -0.2
+      target.headX = 0.14
+      target.headY = Math.sin(elapsed * 1.1) * 0.06
     } else if (state === 'rescue') {
-      p.hipY = base - 0.24 + Math.sin(elapsed * 2.2) * 0.005
-      p.hipX = 0.18
-      p.spineX = 0.34
-      p.chestX = 0.08
-      p.headX = 0.06
-      p.thighLX = -0.82
-      p.thighRX = -0.82
-      p.kneeLX = 1.45
-      p.kneeRX = 1.45
-      p.ankleLX = -0.35
-      p.ankleRX = -0.35
-      p.armLX = -1.08
-      p.armRX = -1.08
-      p.elbowLX = 0.45
-      p.elbowRX = 0.45
-      p.armLZ = 0.2
-      p.armRZ = -0.2
-      p.skirtX = 0.22
-      p.ponytailX = 0.08
-      p.ponytailZ = Math.sin(elapsed * 2.4) * 0.03
-      p.accessoryX = 0.06
+      target.modelY = -0.14
+      target.hipsX = 0.26
+      target.armLX = -1.25
+      target.armRX = -1.25
+      target.legLX = 0.3
+      target.legRX = -0.2
+      target.headX = -0.1
     } else if (state === 'lunge') {
-      p.hipY = base - 0.06
-      p.hipX = 0.3
-      p.spineX = 0.32
-      p.chestX = 0.12
-      p.headX = -0.12
-      p.thighLX = -0.3
-      p.thighRX = 0.35
-      p.kneeLX = 0.45
-      p.kneeRX = 0.35
-      p.armLX = 0.85
-      p.armRX = 0.85
-      p.elbowLX = 0.2
-      p.elbowRX = 0.2
-      p.armLZ = 0.2
-      p.armRZ = -0.2
-      p.skirtX = 0.18
-      p.skirtFlare = 1.12
-      p.ponytailX = 0.12
-      p.accessoryX = 0.1
+      target.modelY = -0.08
+      target.hipsX = 0.34
+      target.armLX = 0.9
+      target.armRX = 0.9
+      target.legLX = -0.35
+      target.legRX = 0.35
+      target.headX = -0.12
     } else if (state === 'hit') {
-      p.hipX = -0.16
-      p.spineX = -0.28
-      p.chestX = -0.18
-      p.headX = 0.28
-      p.headY = clamp(turn * 0.1, -0.2, 0.2)
-      p.armLX = -0.45
-      p.armRX = -0.45
-      p.elbowLX = 0.55
-      p.elbowRX = 0.55
-      p.thighLX = 0.18
-      p.thighRX = -0.18
-      p.kneeLX = 0.25
-      p.kneeRX = 0.25
-      p.skirtX = -0.12
-      p.ponytailX = -0.08
-      p.accessoryX = -0.08
+      target.hipsX = -0.3
+      target.headX = 0.25
+      target.armLX = -0.4
+      target.armRX = -0.4
+      target.legLX = 0.2
+      target.legRX = -0.2
     }
 
-    if (this.crouching && (state === 'idle' || state === 'walk' || state === 'run')) {
-      p.hipY -= 0.18
-      p.spineX += 0.2
-      p.thighLX -= 0.75
-      p.thighRX -= 0.75
-      p.kneeLX += 1.0
-      p.kneeRX += 1.0
-      p.ankleLX -= 0.3
-      p.ankleRX -= 0.3
-      p.headX -= 0.04
+    if (this.crouching && (state === 'idle' || state === 'walk')) {
+      target.modelY = Math.min(target.modelY, -0.22)
+      target.hipsX = 0.18
+      target.legLX = 0.55
+      target.legRX = -0.35
+      target.headX = -0.06
     }
 
-    const lambda = state === 'walk' || state === 'run' ? 17 : 11
-    this.dampEuler(this.hips, p.hipX, 0, p.hipZ, lambda, dt)
-    this.hips.position.y = damp(this.hips.position.y, p.hipY, lambda, dt)
-    this.dampEuler(this.spine, p.spineX, p.spineY, p.spineZ, lambda, dt)
-    this.dampEuler(this.chest, p.chestX, p.chestY, p.chestZ, lambda, dt)
-    this.dampEuler(this.neck, p.neckX, p.neckY, 0, lambda, dt)
-    this.dampEuler(this.headPivot, p.headX, p.headY, p.headZ, lambda, dt)
-    this.dampEuler(this.armLeft, p.armLX, p.armLY, p.armLZ, lambda, dt)
-    this.dampEuler(this.armRight, p.armRX, p.armRY, p.armRZ, lambda, dt)
-    this.dampEuler(this.elbowLeft, p.elbowLX, 0, 0, lambda, dt)
-    this.dampEuler(this.elbowRight, p.elbowRX, 0, 0, lambda, dt)
-    this.dampEuler(this.wristLeft, p.wristLX, 0, 0, lambda, dt)
-    this.dampEuler(this.wristRight, p.wristRX, 0, 0, lambda, dt)
-    this.dampEuler(this.thighLeft, p.thighLX, 0, p.thighLZ, lambda, dt)
-    this.dampEuler(this.thighRight, p.thighRX, 0, p.thighRZ, lambda, dt)
-    this.dampEuler(this.kneeLeft, p.kneeLX, 0, 0, lambda, dt)
-    this.dampEuler(this.kneeRight, p.kneeRX, 0, 0, lambda, dt)
-    this.dampEuler(this.ankleLeft, p.ankleLX, 0, 0, lambda, dt)
-    this.dampEuler(this.ankleRight, p.ankleRX, 0, 0, lambda, dt)
+    const lambda = 12
+    this.hips.rotation.x = damp(this.hips.rotation.x, target.hipsX, lambda, dt)
+    this.hips.position.y = damp(this.hips.position.y, target.hipsY, lambda, dt)
+    this.headPivot.rotation.x = damp(this.headPivot.rotation.x, target.headX, lambda, dt)
+    this.headPivot.rotation.y = damp(this.headPivot.rotation.y, target.headY, lambda, dt)
+    this.armLeft.rotation.x = damp(this.armLeft.rotation.x, target.armLX, lambda, dt)
+    this.armRight.rotation.x = damp(this.armRight.rotation.x, target.armRX, lambda, dt)
+    this.armLeft.rotation.z = damp(this.armLeft.rotation.z, target.armLZ, lambda, dt)
+    this.armRight.rotation.z = damp(this.armRight.rotation.z, target.armRZ, lambda, dt)
+    this.legLeft.rotation.x = damp(this.legLeft.rotation.x, target.legLX, lambda, dt)
+    this.legRight.rotation.x = damp(this.legRight.rotation.x, target.legRX, lambda, dt)
+    this.model.position.y = damp(this.model.position.y, target.modelY, lambda, dt)
 
-    this.dampEuler(this.skirt, p.skirtX, 0, p.skirtZ, 7, dt)
-    this.skirt.scale.x = damp(this.skirt.scale.x, p.skirtFlare, 6, dt)
-    this.skirt.scale.z = damp(this.skirt.scale.z, p.skirtFlare * 0.92, 6, dt)
-    this.dampEuler(this.ponytail, p.ponytailX, 0, p.ponytailZ, 6, dt)
-    this.dampEuler(this.accessory, p.accessoryX, 0, p.accessoryZ, 6, dt)
-    this.dampEuler(this.scarfTail, p.scarfX, 0, p.scarfZ, 6, dt)
-    this.dampEuler(this.backpack, p.backpackX, 0, p.backpackZ, 7, dt)
-
-    this.updateBlink(dt)
   }
 
   dispose(): void {
@@ -449,654 +189,15 @@ export class CharacterModel {
     this.mergedGeometries.length = 0
   }
 
-  // ── 层级与基础材质 ────────────────────────────────────────
-  private buildHierarchy(): void {
-    this.model.add(this.hips)
-    this.hips.position.y = this.baseHipsY
-    this.hips.add(this.spine)
-    this.spine.position.y = 0.12
-    this.spine.add(this.chest)
-    this.chest.position.y = 0.15
-    this.chest.add(this.neck)
-    this.neck.position.y = 0.2
-    this.neck.add(this.headPivot)
-    this.headPivot.position.y = 0.1
-
-    this.chest.add(this.armLeft, this.armRight)
-    this.armLeft.position.set(-0.28, 0.17, 0)
-    this.armRight.position.set(0.28, 0.17, 0)
-    this.armLeft.add(this.elbowLeft)
-    this.armRight.add(this.elbowRight)
-    this.elbowLeft.position.y = -0.26
-    this.elbowRight.position.y = -0.26
-    this.elbowLeft.add(this.wristLeft)
-    this.elbowRight.add(this.wristRight)
-    this.wristLeft.position.y = -0.24
-    this.wristRight.position.y = -0.24
-
-    this.model.add(this.thighLeft, this.thighRight)
-    this.thighLeft.position.set(-0.13, 0.66, 0)
-    this.thighRight.position.set(0.13, 0.66, 0)
-    this.thighLeft.add(this.kneeLeft)
-    this.thighRight.add(this.kneeRight)
-    this.kneeLeft.position.y = -0.3
-    this.kneeRight.position.y = -0.3
-    this.kneeLeft.add(this.ankleLeft)
-    this.kneeRight.add(this.ankleRight)
-    this.ankleLeft.position.y = -0.27
-    this.ankleRight.position.y = -0.27
-
-    this.hips.add(this.skirt)
-    this.skirt.position.y = -0.06
-    this.headPivot.add(this.eyeGroup, this.ponytail, this.accessory)
-    this.chest.add(this.scarfTail, this.backpack)
-    this.backpack.position.set(0, 0.08, -0.24)
-  }
-
-  private buildShadow(): void {
-    const texture = this.assets.getCanvasTexture('character-shadow', 128, 128, (ctx, width, height) => {
-      const gradient = ctx.createRadialGradient(width / 2, height / 2, 0, width / 2, height / 2, width / 2)
-      gradient.addColorStop(0, 'rgba(20,12,40,0.55)')
-      gradient.addColorStop(0.55, 'rgba(20,12,40,0.22)')
-      gradient.addColorStop(1, 'rgba(20,12,40,0)')
-      ctx.fillStyle = gradient
-      ctx.fillRect(0, 0, width, height)
-    })
-    const geometry = this.assets.getGeometry('character-shadow-plane', () => new THREE.PlaneGeometry(1.1, 0.8))
-    this.shadowMaterial = new THREE.MeshBasicMaterial({
-      map: texture,
-      transparent: true,
-      depthWrite: false
-    })
-    this.shadow = new THREE.Mesh(geometry, this.shadowMaterial)
-    this.shadow.rotation.x = -Math.PI / 2
-    this.shadow.position.y = 0.02
-    this.group.add(this.shadow)
-  }
-
-  private mat(color: number, options: MaterialOptions = {}): THREE.MeshStandardMaterial {
-    return this.assets.getMaterial(color, options)
-  }
-
-  private basic(color: number, opacity = 1): THREE.MeshBasicMaterial {
-    return this.assets.getBasicMaterial(color, { transparent: opacity < 1, opacity })
-  }
-
-  private roundBox(
-    w: number,
-    h: number,
-    d: number,
-    color: number,
-    options: { radius?: number; material?: MaterialOptions; cast?: boolean } = {}
-  ): THREE.Mesh {
-    const radius = options.radius ?? Math.min(0.06, Math.min(w, h, d) * 0.18)
-    const key = `char-rbox:${w}:${h}:${d}:${radius}`
-    const geometry = this.assets.getGeometry(key, () => new RoundedBoxGeometry(w, h, d, 3, radius))
-    const mesh = new THREE.Mesh(geometry, this.mat(color, options.material))
-    mesh.castShadow = options.cast ?? true
-    return mesh
-  }
-
-  private flatBox(
-    w: number,
-    h: number,
-    d: number,
-    color: number,
-    options: { material?: MaterialOptions; cast?: boolean } = {}
-  ): THREE.Mesh {
-    const key = `char-box:${w}:${h}:${d}`
-    const geometry = this.assets.getGeometry(key, () => new THREE.BoxGeometry(w, h, d))
-    const mesh = new THREE.Mesh(geometry, this.mat(color, options.material))
-    mesh.castShadow = options.cast ?? false
-    return mesh
-  }
-
-  private sphere(
-    r: number,
-    color: number,
-    options: { segments?: number; material?: MaterialOptions; cast?: boolean; scale?: [number, number, number] } = {}
-  ): THREE.Mesh {
-    const segments = options.segments ?? 20
-    const key = `char-sphere:${r}:${segments}`
-    const geometry = this.assets.getGeometry(
-      key,
-      () => new THREE.SphereGeometry(r, segments, Math.max(12, Math.floor(segments * 0.75)))
-    )
-    const mesh = new THREE.Mesh(geometry, this.mat(color, options.material))
-    mesh.castShadow = options.cast ?? false
-    if (options.scale) mesh.scale.set(...options.scale)
-    return mesh
-  }
-
-  private capsule(
-    radius: number,
-    length: number,
-    color: number,
-    options: { material?: MaterialOptions; cast?: boolean } = {}
-  ): THREE.Mesh {
-    const key = `char-capsule:${radius}:${length}`
-    const geometry = this.assets.getGeometry(
-      key,
-      () => new THREE.CapsuleGeometry(radius, length, 6, 12)
-    )
-    const mesh = new THREE.Mesh(geometry, this.mat(color, options.material))
-    mesh.castShadow = options.cast ?? true
-    return mesh
-  }
-
-  private cylinder(
-    radiusTop: number,
-    radiusBottom: number,
-    height: number,
-    color: number,
-    options: { segments?: number; material?: MaterialOptions; cast?: boolean } = {}
-  ): THREE.Mesh {
-    const segments = options.segments ?? 16
-    const key = `char-cyl:${radiusTop}:${radiusBottom}:${height}:${segments}`
-    const geometry = this.assets.getGeometry(
-      key,
-      () => new THREE.CylinderGeometry(radiusTop, radiusBottom, height, segments)
-    )
-    const mesh = new THREE.Mesh(geometry, this.mat(color, options.material))
-    mesh.castShadow = options.cast ?? true
-    return mesh
-  }
-
-  private torus(
-    radius: number,
-    tube: number,
-    color: number,
-    options: { radialSegments?: number; tubularSegments?: number; arc?: number; material?: MaterialOptions } = {}
-  ): THREE.Mesh {
-    const key = `char-torus:${radius}:${tube}:${options.radialSegments ?? 8}:${options.tubularSegments ?? 28}:${options.arc ?? Math.PI * 2}`
-    const geometry = this.assets.getGeometry(
-      key,
-      () => new THREE.TorusGeometry(
-        radius,
-        tube,
-        options.radialSegments ?? 8,
-        options.tubularSegments ?? 28,
-        options.arc ?? Math.PI * 2
-      )
-    )
-    const mesh = new THREE.Mesh(geometry, this.mat(color, options.material))
-    mesh.castShadow = true
-    return mesh
-  }
-
-  private lathe(
-    points: Array<[number, number]>,
-    color: number,
-    segments = 28,
-    material?: MaterialOptions
-  ): THREE.Mesh {
-    const key = `char-lathe:${points.map(([x, y]) => `${x},${y}`).join('|')}:${segments}`
-    const geometry = this.assets.getGeometry(key, () => {
-      const vectors = points.map(([x, y]) => new THREE.Vector2(x, y))
-      return new THREE.LatheGeometry(vectors, segments)
-    })
-    const mesh = new THREE.Mesh(geometry, this.mat(color, material))
-    mesh.castShadow = true
-    return mesh
-  }
-
-  private place(
-    parent: THREE.Object3D,
-    mesh: THREE.Object3D,
-    x = 0,
-    y = 0,
-    z = 0,
-    rx = 0,
-    ry = 0,
-    rz = 0
-  ): THREE.Object3D {
-    mesh.position.set(x, y, z)
-    mesh.rotation.set(rx, ry, rz)
-    parent.add(mesh)
-    return mesh
-  }
-
-  // ── 身体 ────────────────────────────────────────────────
-  private buildBody(): void {
-    this.place(this.hips, this.roundBox(0.42, 0.28, 0.3, this.shirt, { radius: 0.07 }), 0, 0.02, 0)
-    this.place(this.hips, this.torus(0.2, 0.035, COLORS.gold, { tubularSegments: 24, material: { metalness: 0.25, roughness: 0.45 } }), 0, 0.14, 0, Math.PI / 2)
-    this.place(this.hips, this.torus(0.15, 0.02, this.accent, { tubularSegments: 22 }), 0, -0.02, 0.16, Math.PI / 2)
-
-    this.place(this.spine, this.roundBox(0.36, 0.24, 0.26, this.shirt, { radius: 0.06 }), 0, 0.08, 0)
-    this.place(this.spine, this.flatBox(0.32, 0.05, 0.02, this.accent), 0, 0.16, 0.135)
-
-    this.place(this.chest, this.roundBox(0.44, 0.32, 0.3, this.shirt, { radius: 0.07 }), 0, 0.08, 0)
-    this.place(this.chest, this.roundBox(0.4, 0.1, 0.31, this.accent, { radius: 0.04 }), 0, 0.22, 0)
-    this.place(this.chest, this.torus(0.14, 0.028, COLORS.cream, { tubularSegments: 24 }), 0, 0.24, 0, Math.PI / 2)
-    for (let i = 0; i < 3; i++) {
-      this.place(this.chest, this.sphere(0.025, COLORS.gold, { segments: 8 }), 0, 0.15 - i * 0.075, 0.16)
-    }
-    this.place(this.chest, this.flatBox(0.3, 0.06, 0.02, COLORS.gold), 0, -0.02, 0.15)
-    for (const s of [-1, 1]) {
-      this.place(
-        this.chest,
-        this.sphere(0.055, this.accent, { segments: 10, scale: [1.25, 0.8, 0.45] }),
-        s * 0.055,
-        0.18,
-        0.165
-      )
-    }
-    this.place(this.chest, this.sphere(0.028, COLORS.gold, { segments: 8 }), 0, 0.18, 0.175)
-    this.place(this.neck, this.cylinder(0.075, 0.09, 0.14, this.skin, { segments: 12 }), 0, 0.04, 0)
-  }
-
-  private buildHead(): void {
-    this.headPivot.position.y = 0.1
-    const head = this.sphere(0.31, this.skin, {
-      segments: 28,
-      cast: true,
-      scale: [1.0, 1.05, 0.94]
-    })
-    this.place(this.headPivot, head, 0, 0.02, 0)
-    for (const side of [-1, 1]) {
-      this.place(this.headPivot, this.sphere(0.075, this.skin, { segments: 12, scale: [0.7, 1, 0.55] }), side * 0.3, 0.02, 0)
-    }
-
-    const hairCap = new THREE.Mesh(
-      this.assets.getGeometry(
-        'char-hair-cap',
-        () => new THREE.SphereGeometry(0.335, 28, 18, 0, Math.PI * 2, 0, Math.PI * 0.62)
-      ),
-      this.mat(this.hair, { roughness: 0.9 })
-    )
-    hairCap.position.y = 0.04
-    hairCap.scale.set(1.02, 1.04, 0.98)
-    hairCap.castShadow = true
-    this.headPivot.add(hairCap)
-
-    // 头发高光
-    const highlight = new THREE.Mesh(
-      this.assets.getGeometry('char-hair-highlight', () => new THREE.TorusGeometry(0.2, 0.011, 6, 20, Math.PI * 0.9)),
-      this.mat(this.hairLight, { roughness: 0.85 })
-    )
-    highlight.position.set(0.02, 0.2, -0.04)
-    highlight.rotation.set(-0.4, 0, -0.35)
-    highlight.castShadow = false
-    this.headPivot.add(highlight)
-
-    // 刘海
-    for (let i = -3; i <= 3; i++) {
-      const bang = this.sphere(0.085 - Math.abs(i) * 0.006, this.hair, {
-        segments: 12,
-        cast: true,
-        scale: [0.72, 0.95, 0.45]
-      })
-      bang.position.set(i * 0.085, 0.175 - Math.abs(i) * 0.012, 0.245 - Math.abs(i) * 0.008)
-      bang.rotation.z = -i * 0.1
-      this.headPivot.add(bang)
-    }
-
-    // 侧发
-    for (const side of [-1, 1]) {
-      const lock = this.sphere(0.075, this.hair, {
-        segments: 12,
-        cast: true,
-        scale: [0.5, 1.35, 0.5]
-      })
-      lock.position.set(side * 0.29, 0.0, 0.02)
-      lock.rotation.z = side * 0.15
-      this.headPivot.add(lock)
-      const tail = this.sphere(0.06, this.hairLight, {
-        segments: 10,
-        scale: [0.45, 1.2, 0.4]
-      })
-      tail.position.set(side * 0.3, -0.14, 0.01)
-      this.headPivot.add(tail)
-    }
-
-    // 后脑发量
-    const backHair = this.sphere(0.225, this.hair, {
-      segments: 20,
-      scale: [0.9, 0.95, 0.5]
-    })
-    backHair.position.set(0, -0.01, -0.09)
-    this.headPivot.add(backHair)
-
-    // 眉毛
-    for (const side of [-1, 1]) {
-      const brow = this.flatBox(0.09, 0.018, 0.018, this.hair)
-      brow.position.set(side * 0.12, 0.15, 0.302)
-      brow.rotation.z = side * -0.12
-      this.headPivot.add(brow)
-    }
-
-    // 眼睛（独立组，可整体眨眼）
-    for (const side of [-1, 1]) {
-      const white = this.sphere(0.085, COLORS.paper, {
-        segments: 16,
-        scale: [1.0, 1.2, 0.45],
-        material: { roughness: 0.35 }
-      })
-      white.position.set(side * 0.115, 0.015, 0.285)
-      this.eyeGroup.add(white)
-      const iris = this.sphere(0.049, this.iris, {
-        segments: 14,
-        scale: [1.0, 1.15, 0.4],
-        material: { roughness: 0.2 }
-      })
-      iris.position.set(side * 0.115, 0.012, 0.323)
-      this.eyeGroup.add(iris)
-      const pupil = this.sphere(0.026, COLORS.ink, {
-        segments: 12,
-        scale: [1.0, 1.15, 0.35],
-        material: { roughness: 0.15 }
-      })
-      pupil.position.set(side * 0.115, 0.012, 0.35)
-      this.eyeGroup.add(pupil)
-      const shine = this.sphere(0.015, COLORS.paper, { segments: 8 })
-      shine.position.set(side * 0.1, 0.045, 0.372)
-      this.eyeGroup.add(shine)
-      const shine2 = this.sphere(0.008, COLORS.paper, { segments: 6 })
-      shine2.position.set(side * 0.132, -0.012, 0.372)
-      this.eyeGroup.add(shine2)
-      const lash = this.torus(0.066, 0.012, COLORS.ink, {
-        tubularSegments: 16,
-        arc: Math.PI * 0.7,
-        radialSegments: 6
-      })
-      lash.position.set(side * 0.115, 0.03, 0.31)
-      lash.rotation.z = side * 0.08
-      this.eyeGroup.add(lash)
-    }
-
-    // 腮红、鼻子、嘴
-    for (const side of [-1, 1]) {
-      const blush = new THREE.Mesh(
-        this.assets.getGeometry('char-blush', () => new THREE.CircleGeometry(0.052, 14)),
-        this.basic(COLORS.pink, 0.48)
-      )
-      blush.position.set(side * 0.2, -0.075, 0.292)
-      this.headPivot.add(blush)
-    }
-    const nose = this.sphere(0.018, this.darken(this.skin, 0.12), { segments: 8 })
-    nose.position.set(0, -0.035, 0.352)
-    this.headPivot.add(nose)
-    const mouth = this.torus(0.055, 0.01, COLORS.pinkDeep, {
-      tubularSegments: 16,
-      arc: Math.PI,
-      radialSegments: 6
-    })
-    mouth.position.set(0, -0.13, 0.33)
-    mouth.rotation.z = Math.PI
-    this.headPivot.add(mouth)
-    const lowerLip = this.sphere(0.02, COLORS.pink, { segments: 8, scale: [1.2, 0.35, 0.5] })
-    lowerLip.position.set(0, -0.155, 0.338)
-    this.headPivot.add(lowerLip)
-  }
-
-  private buildArms(): void {
-    for (const [side, shoulder, elbow, wrist] of [
-      [-1, this.armLeft, this.elbowLeft, this.wristLeft],
-      [1, this.armRight, this.elbowRight, this.wristRight]
-    ] as const) {
-      const sleeve = this.sphere(0.11, this.shirt, {
-        segments: 16,
-        cast: true,
-        scale: [1.0, 1.05, 0.95]
-      })
-      sleeve.position.set(side * 0.01, 0, 0)
-      shoulder.add(sleeve)
-      const upper = this.capsule(0.062, 0.18, this.skin)
-      upper.position.y = -0.14
-      shoulder.add(upper)
-
-      const forearm = this.capsule(0.056, 0.16, this.skin)
-      forearm.position.y = -0.1
-      elbow.add(forearm)
-      const jointCuff = this.torus(0.064, 0.014, this.accent, {
-        tubularSegments: 16,
-        material: { roughness: 0.75 }
-      })
-      jointCuff.rotation.x = Math.PI / 2
-      jointCuff.position.y = 0
-      elbow.add(jointCuff)
-      const cuff = this.cylinder(0.064, 0.072, 0.05, this.accent, { segments: 12 })
-      cuff.position.y = -0.19
-      elbow.add(cuff)
-
-      const hand = this.sphere(0.072, this.skin, {
-        segments: 12,
-        scale: [0.9, 1.0, 0.75],
-        cast: true
-      })
-      hand.position.y = -0.04
-      wrist.add(hand)
-      const thumb = this.sphere(0.025, this.skin, { segments: 8, scale: [0.6, 1.1, 0.7] })
-      thumb.position.set(side * 0.05, -0.005, 0.035)
-      wrist.add(thumb)
-    }
-  }
-
-  private buildLegs(): void {
-    for (const [side, thigh, knee, ankle] of [
-      [-1, this.thighLeft, this.kneeLeft, this.ankleLeft],
-      [1, this.thighRight, this.kneeRight, this.ankleRight]
-    ] as const) {
-      const upper = this.capsule(0.066, 0.2, this.skin)
-      upper.position.y = -0.14
-      thigh.add(upper)
-      const lower = this.capsule(0.058, 0.18, this.skin)
-      lower.position.y = -0.12
-      knee.add(lower)
-      const sock = this.cylinder(0.064, 0.07, 0.14, this.socks, {
-        segments: 14,
-        material: { roughness: 0.9 }
-      })
-      sock.position.y = -0.19
-      knee.add(sock)
-      const shoe = this.roundBox(0.16, 0.1, 0.25, this.shoes, { radius: 0.035 })
-      shoe.position.set(0, -0.045, 0.045)
-      ankle.add(shoe)
-      const sole = this.flatBox(0.17, 0.035, 0.26, this.darken(this.shoes, 0.25))
-      sole.position.set(0, -0.095, 0.045)
-      ankle.add(sole)
-      const toe = this.sphere(0.06, this.shoes, {
-        segments: 12,
-        scale: [1.05, 0.7, 1.0]
-      })
-      toe.position.set(0, -0.035, 0.15)
-      ankle.add(toe)
-      const strap = this.flatBox(0.16, 0.025, 0.04, COLORS.gold)
-      strap.position.set(0, -0.005, 0.09)
-      ankle.add(strap)
-      const knot = this.sphere(0.022, COLORS.gold, { segments: 8 })
-      knot.position.set(side * 0.08, -0.005, 0.09)
-      ankle.add(knot)
-    }
-  }
-
-  private buildSkirt(): void {
-    const long = this.isGhost
-    const mainPoints: Array<[number, number]> = long
-      ? [[0.19, 0.14], [0.22, 0.04], [0.3, -0.16], [0.38, -0.36], [0.42, -0.56], [0.44, -0.58]]
-      : [[0.19, 0.14], [0.22, 0.04], [0.3, -0.09], [0.38, -0.19], [0.4, -0.21]]
-    const underskirtPoints: Array<[number, number]> = long
-      ? [[0.17, 0.12], [0.21, 0.0], [0.28, -0.2], [0.36, -0.4], [0.4, -0.54]]
-      : [[0.17, 0.12], [0.21, 0.0], [0.3, -0.13], [0.37, -0.2]]
-    const main = this.lathe(mainPoints, this.accent, 30, { roughness: 0.78, side: THREE.DoubleSide })
-    const under = this.lathe(underskirtPoints, this.shirt, 30, { roughness: 0.8, side: THREE.DoubleSide })
-    this.skirt.add(main, under)
-
-    const hem = this.torus(0.39, 0.018, COLORS.cream, {
-      tubularSegments: 30,
-      material: { roughness: 0.7 }
-    })
-    hem.rotation.x = Math.PI / 2
-    hem.position.y = long ? -0.55 : -0.2
-    this.skirt.add(hem)
-    const waistBand = this.cylinder(0.21, 0.22, 0.06, COLORS.cream, { segments: 24 })
-    waistBand.position.y = 0.12
-    this.skirt.add(waistBand)
-    for (const s of [-1, 1]) {
-      const lobe = this.sphere(0.07, this.shirt, {
-        segments: 10,
-        scale: [1.2, 0.8, 0.45]
-      })
-      lobe.position.set(s * 0.065, 0.08, -0.2)
-      this.skirt.add(lobe)
-    }
-    const knot = this.sphere(0.035, COLORS.gold, { segments: 8 })
-    knot.position.set(0, 0.08, -0.2)
-    this.skirt.add(knot)
-  }
-
-  private buildPonytail(): void {
-    this.ponytail.position.set(0, 0.18, -0.25)
-    const hairTie = this.torus(0.07, 0.022, this.accent, {
-      tubularSegments: 18,
-      material: { roughness: 0.7 }
-    })
-    hairTie.rotation.x = Math.PI / 2
-    this.ponytail.add(hairTie)
-    const segments: Array<[number, number, number, number]> = [
-      [0, 0.015, -0.025, 0.075],
-      [0, -0.06, -0.07, 0.085],
-      [0, -0.14, -0.105, 0.075],
-      [0, -0.21, -0.12, 0.055]
-    ]
-    for (const [x, y, z, r] of segments) {
-      const segment = this.sphere(r, this.hair, {
-        segments: 14,
-        cast: true,
-        scale: [0.68, 1.18, 0.68]
-      })
-      segment.position.set(x, y, z)
-      this.ponytail.add(segment)
-    }
-    const streak = this.sphere(0.04, this.hairLight, {
-      segments: 8,
-      scale: [0.35, 1.35, 0.32]
-    })
-    streak.position.set(0.015, -0.06, -0.12)
-    this.ponytail.add(streak)
-    const ribbon = this.sphere(0.09, this.accent, {
-      segments: 10,
-      scale: [1.5, 0.8, 0.45]
-    })
-    ribbon.position.set(0, 0.015, -0.08)
-    this.ponytail.add(ribbon)
-    const knot = this.sphere(0.03, COLORS.gold, { segments: 8 })
-    knot.position.set(0, 0.015, -0.12)
-    this.ponytail.add(knot)
-  }
-
-  private buildAccessory(accessory: HiderPalette['accessory']): void {
-    if (accessory === 'bow') {
-      this.accessory.position.set(0.23, 0.19, 0.09)
-      this.accessory.rotation.z = -0.25
-      for (const s of [-1, 1]) {
-        const lobe = this.sphere(0.085, this.accent, {
-          segments: 12,
-          scale: [1.15, 0.8, 0.5]
-        })
-        lobe.position.set(s * 0.07, 0, 0)
-        this.accessory.add(lobe)
-        const tail = this.flatBox(0.08, 0.14, 0.02, this.accent)
-        tail.position.set(s * 0.045, -0.09, 0)
-        tail.rotation.z = s * 0.2
-        this.accessory.add(tail)
-      }
-      const knot = this.sphere(0.04, COLORS.gold, { segments: 8 })
-      this.accessory.add(knot)
-    } else if (accessory === 'beret') {
-      this.accessory.position.set(0.02, 0.31, -0.01)
-      this.accessory.rotation.z = -0.16
-      const cap = this.sphere(0.28, this.accent, {
-        segments: 18,
-        scale: [1.0, 0.42, 1.0],
-        material: { roughness: 0.75 }
-      })
-      this.accessory.add(cap)
-      const brim = this.torus(0.24, 0.025, this.shirt, {
-        tubularSegments: 24,
-        material: { roughness: 0.7 }
-      })
-      brim.rotation.x = Math.PI / 2
-      brim.position.y = -0.025
-      this.accessory.add(brim)
-      const stem = this.cylinder(0.02, 0.02, 0.06, COLORS.gold, { segments: 6 })
-      stem.position.set(0, 0.14, 0)
-      this.accessory.add(stem)
-    } else if (accessory === 'scarf') {
-      const wrap = this.torus(0.17, 0.055, this.accent, {
-        tubularSegments: 24,
-        material: { roughness: 0.85 }
-      })
-      wrap.rotation.x = Math.PI / 2
-      wrap.position.y = 0.27
-      this.chest.add(wrap)
-      this.scarfTail.position.set(0.16, 0.19, 0.16)
-      const tail = this.flatBox(0.12, 0.3, 0.04, this.accent)
-      tail.position.y = -0.12
-      tail.rotation.z = -0.15
-      this.scarfTail.add(tail)
-      const tip = this.flatBox(0.11, 0.04, 0.045, this.shirt)
-      tip.position.y = -0.28
-      tip.rotation.z = -0.15
-      this.scarfTail.add(tip)
-    } else if (accessory === 'backpack') {
-      this.backpack.position.set(0, 0.08, -0.24)
-      const pack = this.roundBox(0.3, 0.34, 0.16, this.accent, { radius: 0.06 })
-      this.backpack.add(pack)
-      const pocket = this.roundBox(0.18, 0.14, 0.06, this.shirt, { radius: 0.04 })
-      pocket.position.set(0, -0.06, -0.1)
-      this.backpack.add(pocket)
-      const flap = this.roundBox(0.26, 0.08, 0.05, COLORS.cream, { radius: 0.03 })
-      flap.position.set(0, 0.12, -0.1)
-      this.backpack.add(flap)
-      for (const s of [-1, 1]) {
-        const strap = this.flatBox(0.045, 0.3, 0.03, COLORS.cream)
-        strap.position.set(s * 0.16, 0.08, 0.1)
-        this.chest.add(strap)
-      }
-    } else if (accessory === 'headband') {
-      this.accessory.position.set(0, 0.13, 0)
-      const band = this.torus(0.29, 0.025, this.accent, {
-        tubularSegments: 24,
-        material: { roughness: 0.7 }
-      })
-      band.rotation.x = Math.PI / 2
-      this.accessory.add(band)
-      const star = new THREE.Mesh(
-        this.assets.getGeometry('char-star-accessory', () => new THREE.OctahedronGeometry(0.085, 0)),
-        this.mat(this.accent, { emissive: this.accent, emissiveIntensity: 0.3 })
-      )
-      star.position.set(0.22, 0.04, 0.08)
-      this.accessory.add(star)
-    }
-  }
-
-  // ── 合并与工具 ────────────────────────────────────────────
-  private mergeAll(): void {
+  /** 把每个动画关节内部的静态网格按材质合并，显著减少角色 draw call。 */
+  private mergeAnimatedGroups(): void {
     for (const group of [
       this.hips,
-      this.spine,
-      this.chest,
-      this.neck,
       this.headPivot,
       this.armLeft,
       this.armRight,
-      this.elbowLeft,
-      this.elbowRight,
-      this.wristLeft,
-      this.wristRight,
-      this.thighLeft,
-      this.thighRight,
-      this.kneeLeft,
-      this.kneeRight,
-      this.ankleLeft,
-      this.ankleRight,
-      this.eyeGroup,
-      this.skirt,
-      this.ponytail,
-      this.accessory,
-      this.scarfTail,
-      this.backpack
+      this.legLeft,
+      this.legRight
     ]) {
       this.mergeDirectMeshes(group)
     }
@@ -1160,44 +261,417 @@ export class CharacterModel {
     }
   }
 
-  private updateBlink(dt: number): void {
-    this.blinkTimer -= dt
-    if (this.blinkTimer <= 0) {
-      this.blinkTimer = 2.2 + Math.random() * 3.4
-      this.blinkRemaining = 0.12
-    }
-    if (this.blinkRemaining > 0) {
-      this.blinkRemaining = Math.max(0, this.blinkRemaining - dt)
-      this.eyeGroup.scale.y = damp(this.eyeGroup.scale.y, 0.12, 32, dt)
-    } else {
-      this.eyeGroup.scale.y = damp(this.eyeGroup.scale.y, 1, 20, dt)
+  private buildShadow(): void {
+    const geometry = this.assets.getGeometry('character-shadow', () => new THREE.CircleGeometry(0.42, 20))
+    this.shadowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x1a1028,
+      transparent: true,
+      opacity: 0.28,
+      depthWrite: false
+    })
+    this.shadow = new THREE.Mesh(geometry, this.shadowMaterial)
+    this.shadow.rotation.x = -Math.PI / 2
+    this.shadow.position.y = 0.02
+    this.shadow.scale.set(1.25, 0.85, 1)
+    this.group.add(this.shadow)
+  }
+
+  private buildLegs(skin: number, isGhost: boolean): void {
+    const legColor = isGhost ? skin : 0xfff3e4
+    const shoeColor = COLORS.woodDark
+    for (const [group, side] of [
+      [this.legLeft, -1],
+      [this.legRight, 1]
+    ] as const) {
+      group.position.set(side * 0.13, 0.66, 0)
+      this.model.add(group)
+
+      const leg = new THREE.Mesh(
+        this.assets.getGeometry(
+          'char-leg',
+          () => new THREE.CapsuleGeometry(0.07, 0.32, 4, 8)
+        ),
+        this.assets.getMaterial(legColor)
+      )
+      leg.position.y = -0.27
+      leg.castShadow = true
+      group.add(leg)
+
+      const shoe = new THREE.Mesh(
+        this.assets.getGeometry('char-shoe', () => new THREE.BoxGeometry(0.15, 0.09, 0.23)),
+        this.assets.getMaterial(shoeColor, { roughness: 0.5 })
+      )
+      shoe.position.set(0, -0.51, 0.04)
+      shoe.castShadow = true
+      group.add(shoe)
     }
   }
 
-  private dampEuler(
-    object: THREE.Object3D,
-    x: number,
-    y: number,
-    z: number,
-    lambda: number,
-    dt: number
+  private buildTorso(shirt: number, accent: number): void {
+    const torso = new THREE.Mesh(
+      this.assets.getGeometry(
+        'char-torso',
+        () => new THREE.CapsuleGeometry(0.21, 0.28, 5, 10)
+      ),
+      this.assets.getMaterial(shirt, { roughness: 0.78 })
+    )
+    torso.position.y = 0.18
+    torso.castShadow = true
+    this.hips.add(torso)
+
+    const skirt = new THREE.Mesh(
+      this.assets.getGeometry(
+        'char-skirt',
+        () => new THREE.CylinderGeometry(0.2, 0.34, 0.34, 14)
+      ),
+      this.assets.getMaterial(accent, { roughness: 0.8 })
+    )
+    skirt.position.y = -0.18
+    skirt.castShadow = true
+    this.hips.add(skirt)
+
+    const collar = new THREE.Mesh(
+      this.assets.getGeometry('char-collar', () => new THREE.TorusGeometry(0.18, 0.035, 6, 16)),
+      this.assets.getMaterial(COLORS.cream, { roughness: 0.7 })
+    )
+    collar.position.y = 0.39
+    collar.rotation.x = Math.PI / 2
+    this.hips.add(collar)
+
+    for (let i = 0; i < 3; i++) {
+      const button = new THREE.Mesh(
+        this.assets.getGeometry('char-button', () => new THREE.SphereGeometry(0.025, 6, 5)),
+        this.assets.getMaterial(COLORS.gold)
+      )
+      button.position.set(0, 0.22 - i * 0.13, 0.21)
+      this.hips.add(button)
+    }
+  }
+
+  private buildHead(skin: number, hair: number, accent: number): void {
+    this.headPivot.position.y = 0.66
+    this.hips.add(this.headPivot)
+
+    const head = new THREE.Mesh(
+      this.assets.getGeometry('char-head-v2', () => new THREE.SphereGeometry(0.33, 24, 18)),
+      this.assets.getMaterial(skin, { roughness: 0.85 })
+    )
+    head.scale.set(1.0, 1.02, 0.95)
+    head.castShadow = true
+    this.headPivot.add(head)
+
+    for (const side of [-1, 1]) {
+      const ear = new THREE.Mesh(
+        this.assets.getGeometry('char-ear-v2', () => new THREE.SphereGeometry(0.06, 10, 8)),
+        this.assets.getMaterial(skin, { roughness: 0.85 })
+      )
+      ear.position.set(side * 0.305, 0.0, 0.01)
+      ear.scale.set(0.65, 1.0, 0.55)
+      this.headPivot.add(ear)
+    }
+
+    const hairCap = new THREE.Mesh(
+      this.assets.getGeometry(
+        'char-hair-cap-v2',
+        () => new THREE.SphereGeometry(0.36, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.6)
+      ),
+      this.assets.getMaterial(hair, { roughness: 0.9 })
+    )
+    hairCap.position.y = 0.02
+    hairCap.rotation.x = -0.15
+    hairCap.scale.set(1.02, 1.0, 0.99)
+    hairCap.castShadow = true
+    this.headPivot.add(hairCap)
+
+    // 发际线高光：几缕更浅的头发，避免整块头发像帽子
+    const hairLight = new THREE.Color(hair).lerp(new THREE.Color(0xffffff), 0.2).getHex()
+    const streaks: Array<[number, number, number, number, number, number, number]> = [
+      [-0.17, 0.2, 0.11, 0.5, -0.5, 0.07, 0.15],
+      [-0.08, 0.235, 0.05, 0.25, -0.3, 0.055, 0.19],
+      [0.15, 0.21, 0.09, -0.35, 0.4, 0.05, 0.14]
+    ]
+    for (const [x, y, z, ry, rz, sx, sy] of streaks) {
+      const streak = new THREE.Mesh(
+        this.assets.getGeometry('char-hair-streak-v2', () => new THREE.SphereGeometry(1, 8, 6)),
+        this.assets.getMaterial(hairLight, { roughness: 0.85 })
+      )
+      streak.position.set(x, y, z)
+      streak.scale.set(sx, sy, 0.028)
+      streak.rotation.set(0, ry, rz)
+      this.headPivot.add(streak)
+    }
+
+    // 中分刘海：两侧各三缕，中间留出额头的发际线
+    for (let i = -3; i <= 3; i++) {
+      if (i === 0) continue
+      const bang = new THREE.Mesh(
+        this.assets.getGeometry('char-bang-v2', () => new THREE.SphereGeometry(0.09, 10, 8)),
+        this.assets.getMaterial(hair, { roughness: 0.9 })
+      )
+      bang.position.set(i * 0.075 + (i > 0 ? 0.008 : -0.008), 0.18 + Math.abs(i) * 0.006, 0.275 - Math.abs(i) * 0.006)
+      bang.scale.set(0.8, 0.7 + Math.abs(i) * 0.04, 0.42)
+      bang.rotation.z = -i * 0.07
+      this.headPivot.add(bang)
+    }
+    const fringe = new THREE.Mesh(
+      this.assets.getGeometry('char-fringe-v2', () => new THREE.SphereGeometry(0.1, 10, 8)),
+      this.assets.getMaterial(hair, { roughness: 0.9 })
+    )
+    fringe.position.set(-0.18, 0.18, 0.27)
+    fringe.scale.set(1.35, 0.6, 0.42)
+    fringe.rotation.z = 0.3
+    this.headPivot.add(fringe)
+
+    // 两侧头发，收住脸型
+    for (const side of [-1, 1]) {
+      const lock = new THREE.Mesh(
+        this.assets.getGeometry('char-lock-v2', () => new THREE.SphereGeometry(0.08, 12, 10)),
+        this.assets.getMaterial(hair, { roughness: 0.9 })
+      )
+      lock.position.set(side * 0.3, 0.02, -0.03)
+      lock.scale.set(0.45, 1.3, 0.45)
+      lock.rotation.z = side * 0.12
+      this.headPivot.add(lock)
+    }
+
+    const backHair = new THREE.Mesh(
+      this.assets.getGeometry('char-backhair-v2', () => new THREE.SphereGeometry(0.24, 16, 12)),
+      this.assets.getMaterial(hair, { roughness: 0.9 })
+    )
+    backHair.position.set(0, -0.01, -0.13)
+    backHair.scale.set(0.92, 0.95, 0.55)
+    this.headPivot.add(backHair)
+
+    const ponytail = new THREE.Mesh(
+      this.assets.getGeometry('char-ponytail-v2', () => new THREE.SphereGeometry(0.16, 14, 10)),
+      this.assets.getMaterial(hair, { roughness: 0.9 })
+    )
+    ponytail.position.set(0, 0.05, -0.33)
+    ponytail.scale.set(0.72, 1.25, 0.65)
+    this.headPivot.add(ponytail)
+    const ponytailTip = new THREE.Mesh(
+      this.assets.getGeometry('char-ponytail-tip-v2', () => new THREE.SphereGeometry(0.1, 12, 8)),
+      this.assets.getMaterial(hair, { roughness: 0.9 })
+    )
+    ponytailTip.position.set(0, -0.06, -0.36)
+    ponytailTip.scale.set(0.65, 1.1, 0.6)
+    this.headPivot.add(ponytailTip)
+
+    const ribbon = new THREE.Mesh(
+      this.assets.getGeometry('char-hair-ribbon-v2', () => new THREE.SphereGeometry(0.085, 10, 8)),
+      this.assets.getMaterial(accent, { roughness: 0.65 })
+    )
+    ribbon.position.set(0, 0.09, -0.37)
+    ribbon.scale.set(1.5, 0.8, 0.45)
+    this.headPivot.add(ribbon)
+    const ribbonKnot = new THREE.Mesh(
+      this.assets.getGeometry('char-hair-ribbon-knot-v2', () => new THREE.SphereGeometry(0.032, 8, 6)),
+      this.assets.getMaterial(COLORS.gold)
+    )
+    ribbonKnot.position.set(0, 0.09, -0.41)
+    this.headPivot.add(ribbonKnot)
+
+    // 眼睛：更完整的眼白、虹膜、瞳孔与高光
+    const irisColor = new THREE.Color(hair).lerp(new THREE.Color(0xffffff), 0.26).getHex()
+    for (const side of [-1, 1]) {
+      const white = new THREE.Mesh(
+        this.assets.getGeometry('char-eye-white-v2', () => new THREE.SphereGeometry(0.085, 16, 12)),
+        this.assets.getMaterial(COLORS.paper, { roughness: 0.35 })
+      )
+      white.position.set(side * 0.115, 0.015, 0.292)
+      white.scale.set(1.0, 1.15, 0.45)
+      this.headPivot.add(white)
+
+      const iris = new THREE.Mesh(
+        this.assets.getGeometry('char-iris-v2', () => new THREE.SphereGeometry(0.046, 14, 10)),
+        this.assets.getMaterial(irisColor, { roughness: 0.2 })
+      )
+      iris.position.set(side * 0.115, 0.012, 0.326)
+      iris.scale.set(1.0, 1.12, 0.35)
+      this.headPivot.add(iris)
+
+      const pupil = new THREE.Mesh(
+        this.assets.getGeometry('char-pupil-v2', () => new THREE.SphereGeometry(0.023, 12, 10)),
+        this.assets.getMaterial(COLORS.ink, { roughness: 0.15 })
+      )
+      pupil.position.set(side * 0.115, 0.012, 0.345)
+      pupil.scale.set(1.0, 1.1, 0.3)
+      this.headPivot.add(pupil)
+
+      const shine = new THREE.Mesh(
+        this.assets.getGeometry('char-shine-v2', () => new THREE.SphereGeometry(0.016, 8, 6)),
+        this.assets.getMaterial(COLORS.paper)
+      )
+      shine.position.set(side * 0.1, 0.05, 0.36)
+      this.headPivot.add(shine)
+      const shine2 = new THREE.Mesh(
+        this.assets.getGeometry('char-shine-small-v2', () => new THREE.SphereGeometry(0.008, 6, 5)),
+        this.assets.getMaterial(COLORS.paper)
+      )
+      shine2.position.set(side * 0.135, -0.012, 0.36)
+      this.headPivot.add(shine2)
+
+      const brow = new THREE.Mesh(
+        this.assets.getGeometry('char-brow-v2', () => new THREE.BoxGeometry(0.09, 0.018, 0.02)),
+        this.assets.getMaterial(hair, { roughness: 0.9 })
+      )
+      brow.position.set(side * 0.115, 0.135, 0.3)
+      brow.rotation.z = side * -0.12
+      this.headPivot.add(brow)
+
+      const blush = new THREE.Mesh(
+        this.assets.getGeometry('char-blush-v2', () => new THREE.CircleGeometry(0.05, 14)),
+        this.assets.getMaterial(COLORS.pink, { transparent: true, opacity: 0.52, roughness: 0.9 })
+      )
+      blush.position.set(side * 0.2, -0.075, 0.29)
+      this.headPivot.add(blush)
+    }
+
+    const noseColor = new THREE.Color(skin).multiplyScalar(0.9).getHex()
+    const nose = new THREE.Mesh(
+      this.assets.getGeometry('char-nose-v2', () => new THREE.SphereGeometry(0.018, 8, 6)),
+      this.assets.getMaterial(noseColor, { roughness: 0.85 })
+    )
+    nose.position.set(0, -0.04, 0.33)
+    nose.scale.set(1.0, 0.8, 0.6)
+    this.headPivot.add(nose)
+
+    const mouth = new THREE.Mesh(
+      this.assets.getGeometry('char-mouth-v2', () => new THREE.TorusGeometry(0.06, 0.012, 6, 14, Math.PI)),
+      this.assets.getMaterial(COLORS.pinkDeep)
+    )
+    mouth.position.set(0, -0.115, 0.326)
+    mouth.rotation.z = Math.PI
+    this.headPivot.add(mouth)
+    const lip = new THREE.Mesh(
+      this.assets.getGeometry('char-lip-v2', () => new THREE.SphereGeometry(0.02, 8, 6)),
+      this.assets.getMaterial(COLORS.pink)
+    )
+    lip.position.set(0, -0.14, 0.332)
+    lip.scale.set(1.2, 0.35, 0.5)
+    this.headPivot.add(lip)
+  }
+
+  private buildArms(skin: number, shirt: number): void {
+    for (const [group, side] of [
+      [this.armLeft, -1],
+      [this.armRight, 1]
+    ] as const) {
+      group.position.set(side * 0.31, 0.38, 0)
+      this.hips.add(group)
+
+      const sleeve = new THREE.Mesh(
+        this.assets.getGeometry('char-sleeve', () => new THREE.CapsuleGeometry(0.085, 0.12, 4, 8)),
+        this.assets.getMaterial(shirt, { roughness: 0.8 })
+      )
+      sleeve.position.y = -0.04
+      sleeve.castShadow = true
+      group.add(sleeve)
+
+      const arm = new THREE.Mesh(
+        this.assets.getGeometry('char-arm', () => new THREE.CapsuleGeometry(0.065, 0.2, 4, 8)),
+        this.assets.getMaterial(skin, { roughness: 0.85 })
+      )
+      arm.position.y = -0.2
+      arm.castShadow = true
+      group.add(arm)
+
+      const hand = new THREE.Mesh(
+        this.assets.getGeometry('char-hand', () => new THREE.SphereGeometry(0.075, 10, 8)),
+        this.assets.getMaterial(skin, { roughness: 0.85 })
+      )
+      hand.position.y = -0.35
+      group.add(hand)
+    }
+  }
+
+  private buildAccessory(
+    accessory: HiderPalette['accessory'],
+    accent: number,
+    isGhost: boolean
   ): void {
-    object.rotation.x = damp(object.rotation.x, x, lambda, dt)
-    object.rotation.y = damp(object.rotation.y, y, lambda, dt)
-    object.rotation.z = damp(object.rotation.z, z, lambda, dt)
+    if (isGhost) return
+
+    if (accessory === 'bow') {
+      const bow = new THREE.Group()
+      bow.position.set(0.24, 0.18, 0.06)
+      bow.rotation.z = -0.25
+      this.headPivot.add(bow)
+      for (const side of [-1, 1]) {
+        const lobe = new THREE.Mesh(
+          this.assets.getGeometry('char-bow', () => new THREE.SphereGeometry(0.08, 8, 6)),
+          this.assets.getMaterial(accent, { roughness: 0.6 })
+        )
+        lobe.position.set(side * 0.07, 0, 0)
+        lobe.scale.set(1.2, 0.8, 0.5)
+        bow.add(lobe)
+      }
+      const knot = new THREE.Mesh(
+        this.assets.getGeometry('char-bow-knot', () => new THREE.SphereGeometry(0.04, 8, 6)),
+        this.assets.getMaterial(COLORS.gold)
+      )
+      bow.add(knot)
+    } else if (accessory === 'beret') {
+      const beret = new THREE.Mesh(
+        this.assets.getGeometry('char-beret', () => new THREE.SphereGeometry(0.3, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.42)),
+        this.assets.getMaterial(accent, { roughness: 0.7 })
+      )
+      beret.position.set(0.04, 0.3, -0.02)
+      beret.rotation.z = -0.16
+      beret.scale.set(1, 0.5, 1)
+      this.headPivot.add(beret)
+      const stem = new THREE.Mesh(
+        this.assets.getGeometry('char-beret-stem', () => new THREE.CylinderGeometry(0.018, 0.018, 0.07, 6)),
+        this.assets.getMaterial(COLORS.gold)
+      )
+      stem.position.set(0.04, 0.44, -0.02)
+      this.headPivot.add(stem)
+    } else if (accessory === 'scarf') {
+      const scarf = new THREE.Mesh(
+        this.assets.getGeometry('char-scarf', () => new THREE.TorusGeometry(0.2, 0.055, 7, 18)),
+        this.assets.getMaterial(accent, { roughness: 0.85 })
+      )
+      scarf.position.y = 0.39
+      scarf.rotation.x = Math.PI / 2
+      this.hips.add(scarf)
+      const tail = new THREE.Mesh(
+        this.assets.getGeometry('char-scarf-tail', () => new THREE.BoxGeometry(0.12, 0.38, 0.05)),
+        this.assets.getMaterial(accent, { roughness: 0.85 })
+      )
+      tail.position.set(0.16, 0.2, 0.2)
+      tail.rotation.z = -0.2
+      this.hips.add(tail)
+    } else if (accessory === 'backpack') {
+      const pack = new THREE.Mesh(
+        this.assets.getGeometry('char-backpack', () => new THREE.BoxGeometry(0.36, 0.42, 0.18)),
+        this.assets.getMaterial(accent, { roughness: 0.8 })
+      )
+      pack.position.set(0, 0.16, -0.27)
+      this.hips.add(pack)
+      for (const side of [-1, 1]) {
+        const strap = new THREE.Mesh(
+          this.assets.getGeometry('char-strap', () => new THREE.BoxGeometry(0.045, 0.4, 0.03)),
+          this.assets.getMaterial(COLORS.cream, { roughness: 0.8 })
+        )
+        strap.position.set(side * 0.14, 0.23, -0.18)
+        this.hips.add(strap)
+      }
+    } else if (accessory === 'headband') {
+      const band = new THREE.Mesh(
+        this.assets.getGeometry('char-headband', () => new THREE.TorusGeometry(0.34, 0.03, 6, 20)),
+        this.assets.getMaterial(accent, { roughness: 0.7 })
+      )
+      band.position.y = 0.13
+      band.rotation.x = Math.PI / 2
+      this.headPivot.add(band)
+      const star = new THREE.Mesh(
+        this.assets.getGeometry('char-star', () => new THREE.OctahedronGeometry(0.09, 0)),
+        this.assets.getMaterial(accent, { emissive: accent, emissiveIntensity: 0.35 })
+      )
+      star.position.set(0.28, 0.22, 0.05)
+      this.headPivot.add(star)
+    }
   }
 
-  private lighten(color: number, amount: number): number {
-    const r = Math.min(255, ((color >> 16) & 0xff) + 255 * amount)
-    const g = Math.min(255, ((color >> 8) & 0xff) + 255 * amount)
-    const b = Math.min(255, (color & 0xff) + 255 * amount)
-    return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b)
-  }
 
-  private darken(color: number, amount: number): number {
-    const r = Math.max(0, ((color >> 16) & 0xff) * (1 - amount))
-    const g = Math.max(0, ((color >> 8) & 0xff) * (1 - amount))
-    const b = Math.max(0, (color & 0xff) * (1 - amount))
-    return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b)
-  }
 }

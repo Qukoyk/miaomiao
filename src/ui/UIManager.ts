@@ -251,7 +251,12 @@ export class UIManager {
       if (show) countdown.textContent = String(Math.max(1, Math.ceil(state.countdown)))
     }
 
-    const statusKey = JSON.stringify(state.hiders) + state.isGhost + state.playerContactCount + state.playerJailCount
+    const statusKey =
+      JSON.stringify(state.hiders) +
+      state.isGhost +
+      state.playerContactCount +
+      state.playerJailCount +
+      state.playerBoost
     if (statusKey !== this.lastStatusKey) {
       this.lastStatusKey = statusKey
       const status = this.hudEl.querySelector('[data-hud="status"]')
@@ -542,6 +547,7 @@ export class UIManager {
         <span class="status-pill__label">关押</span>
         <span class="knots">${knots}</span>
       </div>
+      ${state.playerBoost ? '<div class="status-pill" title="受击后短暂加速"><span class="status-pill__label">加速</span></div>' : ''}
     `
   }
 

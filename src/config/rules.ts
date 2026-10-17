@@ -12,7 +12,10 @@ export const RULES = {
 
   contactDistance: 1.0,
   lungeContactDistance: 1.15,
-  contactCooldown: 1.0,
+  contactCooldown: 2.4, // 命中后的擦刀后摇
+  ghostHitRecoverySpeed: 0.55,
+  hiderHitBoostSeconds: 2.2,
+  hiderHitBoostSpeed: 1.5,
 
   rescueDistance: 1.5,
   rescueSeconds: 5,
@@ -87,18 +90,16 @@ export const RULES = {
   },
 
   camera: {
-    distance: 3.6,
-    height: 1.35,
-    lookHeight: 1.18,
-    shoulderOffset: 0.28,
-    shoulderLook: 0.08,
+    distance: 4.8,
+    height: 1.5,
+    lookHeight: 1.2,
     pitchMin: (-12 * Math.PI) / 180,
     pitchMax: (50 * Math.PI) / 180,
     damping: 12,
-    collisionPadding: 0.24,
-    sprintFov: 64,
-    lungeFov: 76,
-    normalFov: 58
+    collisionPadding: 0.28,
+    sprintFov: 68,
+    lungeFov: 80,
+    normalFov: 62
   },
 
   nav: {

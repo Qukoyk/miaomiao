@@ -23,7 +23,6 @@ export class Character {
   private overrideTimer = 0
   private eliminatedTimer = 0
   private eliminatedStarted = false
-  private turnRate = 0
 
   constructor(
     assets: SharedAssets,
@@ -110,7 +109,6 @@ export class Character {
   }
 
   update(dt: number, elapsed: number): void {
-    const previousYaw = this.yaw
     if (this.record) {
       if (this.record.state === 'free') {
         if (this.speed > 0.05) {
@@ -127,7 +125,6 @@ export class Character {
       this.yaw = approachAngle(this.yaw, this.desiredYaw, 11 * dt)
       this.model.group.rotation.y = this.yaw
     }
-    this.turnRate = dt > 0 ? (this.yaw - previousYaw) / dt : 0
 
     if (this.overrideTimer > 0) {
       this.overrideTimer = Math.max(0, this.overrideTimer - dt)
@@ -152,11 +149,7 @@ export class Character {
       state = this.baseState
     }
 
-    this.model.animate(state, elapsed, dt, {
-      speed: this.speed,
-      moving: this.speed > 0.05,
-      turnRate: this.turnRate
-    })
+    this.model.animate(state, elapsed, dt)
   }
 
   dispose(): void {

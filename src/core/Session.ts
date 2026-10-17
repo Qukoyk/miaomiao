@@ -58,6 +58,8 @@ export interface HudState {
   hiders: HudHider[]
   stamina: number
   lungeCooldown: number
+  playerBoost: boolean
+  playerCanAttack: boolean
   ghostProximity: number
   rescueProgress: number
   rescueName: string
@@ -228,12 +230,20 @@ export class Session {
     return this.playerCharacter
   }
 
-  getGhostPosition(): { x: number; z: number; yaw: number } | null {
+  getGhostPosition(): {
+    x: number
+    z: number
+    yaw: number
+    recovering: boolean
+    canAttack: boolean
+  } | null {
     if (!this.ghostAI) return null
     return {
       x: this.ghostAI.x,
       z: this.ghostAI.z,
-      yaw: this.ghostAI.character.facingYaw
+      yaw: this.ghostAI.character.facingYaw,
+      recovering: this.ghostAI.isRecovering,
+      canAttack: this.ghostAI.canAttack
     }
   }
 
@@ -267,6 +277,7 @@ export class Session {
       state: ai.currentState,
       crouching: ai.isCrouching,
       hasPath: ai.hasPath,
+      boosted: ai.isSpeedBoosted,
       target: ai.pathTarget,
       x: ai.x,
       z: ai.z
@@ -352,6 +363,8 @@ export class Session {
       })),
       stamina: this.playerController.staminaRatio,
       lungeCooldown: this.playerController.lungeCooldownRatio,
+      playerBoost: this.playerController.isSpeedBoosted,
+      playerCanAttack: this.playerController.canAttack,
       ghostProximity: this.getGhostProximity(),
       rescueProgress: rescue.progress,
       rescueName: rescue.name,
@@ -421,6 +434,7 @@ export class Session {
 
   private resolveContacts(): void {
     if (this.mode === 'hider' && this.ghostAI) {
+      if (!this.ghostAI.canAttack) return
       const reach = this.ghostAI.isLunging
         ? RULES.lungeContactDistance
         : RULES.contactDistance
@@ -432,8 +446,12 @@ export class Session {
           continue
         }
         const event = this.rules.tryContact(record.id, false)
-        if (event) {
-          this.ghostAI.notifyHit()
+        if (event && event.type === 'contact') {
+          this.ghostAI.onHitLanded()
+          if (record.state === 'free') {
+            if (record.isPlayer) this.playerController.grantSpeedBoost()
+            else this.findHiderAI(record.id)?.grantSpeedBoost()
+          }
           this.onContactVisual(record.isPlayer)
           break
         }
@@ -441,6 +459,7 @@ export class Session {
       return
     }
 
+    if (!this.playerController.canAttack) return
     const reach = this.playerController.isLunging
       ? RULES.lungeContactDistance
       : RULES.contactDistance
@@ -451,7 +470,9 @@ export class Session {
         continue
       }
       const event = this.rules.tryContact(record.id, true)
-      if (event) {
+      if (event && event.type === 'contact') {
+        this.playerController.onHitLanded()
+        if (record.state === 'free') ai.grantSpeedBoost()
         this.onContactVisual(false)
         break
       }
@@ -642,6 +663,8 @@ export class Session {
       }
       return ''
     }
+
+    if (this.playerController.isSpeedBoosted) return '受击加速！快跑！'
 
     const rescue = this.getRescueInfo()
     if (rescue.progress > 0) return '保持触碰 5 秒即可救援'

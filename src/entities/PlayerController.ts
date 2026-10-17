@@ -21,6 +21,8 @@ export class PlayerController {
   private staminaDelay = 0
   private lungeCooldown = 0
   private lungeTimer = 0
+  private hitRecoveryTimer = 0
+  private speedBoostTimer = 0
   private lungeX = 0
   private lungeZ = 1
   private idleTime = 0
@@ -58,6 +60,14 @@ export class PlayerController {
     return this.sprinting
   }
 
+  get canAttack(): boolean {
+    return this.hitRecoveryTimer <= 0
+  }
+
+  get isSpeedBoosted(): boolean {
+    return !this.isGhost && this.speedBoostTimer > 0
+  }
+
   get staminaRatio(): number {
     if (this.isGhost) return 1
     return Math.max(0, this.stamina / RULES.playerHider.staminaSeconds)
@@ -72,6 +82,8 @@ export class PlayerController {
     this.staminaDelay = 0
     this.lungeCooldown = 0
     this.lungeTimer = 0
+    this.hitRecoveryTimer = 0
+    this.speedBoostTimer = 0
     this.idleTime = 0
     this.crouching = false
     this.moving = false
@@ -83,6 +95,8 @@ export class PlayerController {
     this.cameraRig.applyLook(look.x, look.y)
 
     this.lungeCooldown = Math.max(0, this.lungeCooldown - dt)
+    this.hitRecoveryTimer = Math.max(0, this.hitRecoveryTimer - dt)
+    this.speedBoostTimer = Math.max(0, this.speedBoostTimer - dt)
 
     if (this.character.isJailed || this.character.isEliminated) {
       this.character.setMove(0, 0, 0, false)
@@ -96,7 +110,7 @@ export class PlayerController {
       return
     }
 
-    if (this.isGhost && this.lungeTimer <= 0 && this.lungeCooldown <= 0) {
+    if (this.isGhost && this.canAttack && this.lungeTimer <= 0 && this.lungeCooldown <= 0) {
       if (this.input.consumePressed('lunge')) {
         this.startLunge()
       }
@@ -157,6 +171,12 @@ export class PlayerController {
       }
     }
 
+    if (this.isGhost && this.hitRecoveryTimer > 0) {
+      speed *= RULES.ghostHitRecoverySpeed
+    } else if (!this.isGhost && this.speedBoostTimer > 0) {
+      speed *= RULES.hiderHitBoostSpeed
+    }
+
     if (!this.sprinting && !this.isGhost) {
       if (this.staminaDelay > 0) {
         this.staminaDelay = Math.max(0, this.staminaDelay - dt)
@@ -203,6 +223,19 @@ export class PlayerController {
       this.sprinting && this.moving,
       false
     )
+  }
+
+  onHitLanded(): void {
+    if (!this.isGhost) return
+    this.hitRecoveryTimer = RULES.contactCooldown
+    this.lungeTimer = 0
+    this.lungeCooldown = RULES.playerGhost.lungeCooldown
+    this.character.playHit()
+  }
+
+  grantSpeedBoost(): void {
+    if (this.isGhost) return
+    this.speedBoostTimer = RULES.hiderHitBoostSeconds
   }
 
   private startLunge(): void {
