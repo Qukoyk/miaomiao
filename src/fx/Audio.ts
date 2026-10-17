@@ -213,6 +213,9 @@ export class AudioManager {
           this.chime(now + index * 0.18, note, 0.5, 0.1, 'sine')
         }
         break
+      case 'step':
+        this.noise(now, 0.055, 0.045, 280 + Math.random() * 160)
+        break
     }
   }
 

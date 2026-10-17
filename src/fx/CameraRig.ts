@@ -60,8 +60,10 @@ export class CameraRig {
     const forwardX = Math.sin(this.yaw)
     const forwardZ = Math.cos(this.yaw)
 
-    let desiredX = targetX - forwardX * horizontal
-    let desiredZ = targetZ - forwardZ * horizontal
+    const rightX = -Math.cos(this.yaw)
+    const rightZ = Math.sin(this.yaw)
+    let desiredX = targetX - forwardX * horizontal + rightX * RULES.camera.shoulderOffset
+    let desiredZ = targetZ - forwardZ * horizontal + rightZ * RULES.camera.shoulderOffset
     let desiredY = vertical
 
     const hit = this.collision.segmentHit(targetX, targetZ, desiredX, desiredZ, true)

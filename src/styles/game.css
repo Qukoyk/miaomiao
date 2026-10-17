@@ -811,7 +811,8 @@
   letter-spacing: 0.08em;
 }
 
-.hud--mobile .hud__status {
+.hud--mobile .hud__status,
+.hud--mobile .hud__role {
   display: none;
 }
 

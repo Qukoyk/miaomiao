@@ -287,7 +287,11 @@ export class UIManager {
         const pctEl = rescue.querySelector('[data-hud="rescue-pct"]')
         if (pctEl) pctEl.textContent = `${pct}%`
         const name = rescue.querySelector('[data-hud="rescue-name"]')
-        if (name) name.textContent = state.playerIsJailed ? '等待救援' : `救援 ${state.rescueName}`
+        if (name) name.textContent = state.playerIsJailed
+          ? state.rescueProgress > 0
+            ? '正在被救援'
+            : '等待救援'
+          : `救援 ${state.rescueName}`
         const time = rescue.querySelector('[data-hud="rescue-time"]')
         if (time) time.textContent = `${(state.rescueProgress * 5).toFixed(1)} / 5.0`
         const bar = rescue.querySelector('[data-hud="rescue-bar"]') as HTMLElement | null

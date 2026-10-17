@@ -87,16 +87,18 @@ export const RULES = {
   },
 
   camera: {
-    distance: 4.8,
-    height: 1.5,
-    lookHeight: 1.2,
+    distance: 3.6,
+    height: 1.35,
+    lookHeight: 1.18,
+    shoulderOffset: 0.28,
+    shoulderLook: 0.08,
     pitchMin: (-12 * Math.PI) / 180,
     pitchMax: (50 * Math.PI) / 180,
     damping: 12,
-    collisionPadding: 0.28,
-    sprintFov: 68,
-    lungeFov: 80,
-    normalFov: 62
+    collisionPadding: 0.24,
+    sprintFov: 64,
+    lungeFov: 76,
+    normalFov: 58
   },
 
   nav: {

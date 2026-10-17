@@ -294,6 +294,9 @@ export class App {
         hider.invulnerableUntil = 0
         rules.tryContact(id, this.lastMode === 'ghost')
       },
+      setTimeScale: (value: number) => {
+        this.timeScale = Math.max(0.1, value)
+      },
       setTime: (seconds: number) => {
         const rules = this.session?.getRules()
         if (rules) rules.elapsed = seconds

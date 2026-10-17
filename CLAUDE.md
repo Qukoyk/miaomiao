@@ -65,7 +65,7 @@ npm run deploy:redesign  # 构建并推送 dist/ 到 gh-pages-redesign（不碰 
 
 ### 角色
 
-- `entities/CharacterModel.ts`：程序化角色几何体、配饰与动画。构造末尾会把每个动画关节（hips/head/arms/legs）内部的静态网格按材质合并；新增角色网格时优先加到对应关节组。
+- `entities/CharacterModel.ts`：程序化角色几何体、配饰与动画。关节层级为 hips → spine → chest → neck → head，手臂含肩/肘/腕，腿含髋/膝/踝；角色构造末尾会把每个动画关节内部静态网格按材质合并。头发（ponytail）、裙摆（skirt）、配饰、围巾、背包保留独立组做二次运动。`animate()` 接收 `CharacterMotion`（speed/moving/turnRate），程序化生成 idle/walk/run/crouch/jail/rescue/lunge/hit 姿态，并处理眨眼。新增角色网格时优先加到对应关节组。
 - `entities/Character.ts`：把 `HiderRecord` 与模型连接，处理朝向、动画状态、受击/扑击/关押/出局。
 - `entities/PlayerController.ts`：相机相对移动、体力、蹲下、鬼的扑击、被关押时的呼救。
 - `entities/StatusBillboard.ts`：头顶 3 星星 + 3 关押绳结；纹理在角色 dispose 时释放。
@@ -77,7 +77,7 @@ npm run deploy:redesign  # 构建并推送 dist/ 到 gh-pages-redesign（不碰 
 - `ui/icons.ts` / `ui/art.ts`：内联 SVG 图标与角色/地图插画；禁用 emoji 和外部字体。
 - `fx/Audio.ts`：WebAudio 程序化音乐盒旋律、音效、心跳；首次用户手势后启动；静音存 `localStorage`。
 - `fx/PostFX.ts`：仅高画质启用 Bloom；中/低画质直接渲染。
-- `fx/CameraRig.ts`：第三人称阻尼、2D 避障、FOV、震动。
+- `fx/CameraRig.ts`：第三人称越肩偏移、阻尼、2D 避障、FOV、震动。
 - `fx/Particles.ts`：池化 Sprite 粒子。
 
 ### 性能约定

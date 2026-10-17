@@ -26,6 +26,7 @@ export type SoundName =
   | 'call'
   | 'win'
   | 'lose'
+  | 'step'
 
 export interface SessionCallbacks {
   onEnd: (outcome: MatchOutcome, stats: MatchStats, mode: GameMode) => void
@@ -102,6 +103,7 @@ export class Session {
   private outcome: MatchOutcome | null = null
   private noiseTimer = 0
   private rescueNoiseTimer = 0
+  private footstepTimer = 0
 
   constructor(options: SessionOptions) {
     this.mode = options.mode
@@ -318,6 +320,7 @@ export class Session {
     this.rules.updateRescue(step)
     this.resolveContacts()
     this.emitMovementNoise(step)
+    this.emitFootsteps(step)
     this.processEvents()
 
     this.particles.update(step)
@@ -593,6 +596,27 @@ export class Session {
     }
   }
 
+  private emitFootsteps(dt: number): void {
+    if (!this.playerController.isMoving || this.playerCharacter.isJailed) {
+      this.footstepTimer = 0
+      return
+    }
+    this.footstepTimer -= dt
+    if (this.footstepTimer > 0) return
+    const sprinting = this.playerController.isSprinting
+    this.footstepTimer = sprinting ? 0.22 : 0.36
+    this.particles.burst(
+      this.playerCharacter.x + (Math.random() - 0.5) * 0.25,
+      0.08,
+      this.playerCharacter.z + (Math.random() - 0.5) * 0.25,
+      0xe6d9c8,
+      'bubble',
+      sprinting ? 4 : 2,
+      { speed: 0.45, size: 0.13, life: 0.4, gravity: 0.25 }
+    )
+    this.callbacks.onSound?.('step')
+  }
+
   private getGhostProximity(): number {
     if (this.mode === 'ghost' || !this.ghostAI) return 0
     const distance = distance2D(
@@ -608,6 +632,7 @@ export class Session {
     if (this.rules.countdown > 0) return '准备……'
     if (this.rules.playerHider?.state === 'eliminated') return ''
     if (this.rules.playerHider?.state === 'jailed') {
+      if (this.rules.playerHider.rescueProgress > 0) return '队友正在救你，坚持住'
       return this.input.isTouchDevice ? '点击呼救按钮向队友求助' : '按 F 向队友呼救'
     }
 

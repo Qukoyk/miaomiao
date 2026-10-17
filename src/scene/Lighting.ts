@@ -46,6 +46,14 @@ export class Lighting {
     this.group.add(fill)
     this.group.add(fill.target)
 
+    // 冷色轮廓光，让角色头发和肩部从背景中分离出来。
+    const rim = new THREE.DirectionalLight(0xcfe0ff, 0.52)
+    rim.position.set(-8, 18, -30)
+    rim.target.position.set(0, 0, 0)
+    rim.castShadow = false
+    this.group.add(rim)
+    this.group.add(rim.target)
+
     const maxLights = quality === 'high' ? 6 : quality === 'medium' ? 3 : 2
     const chosen = pickSpread(lampPositions, maxLights)
     for (let i = 0; i < chosen.length; i++) {
