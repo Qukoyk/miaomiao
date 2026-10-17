@@ -1,13 +1,15 @@
 {
   "name": "miaomiao-3d-hide-and-seek",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "npm run typecheck && vite build",
     "preview": "vite preview",
     "start": "vite preview --host",
-    "deploy": "npm run build && cd dist && rm -rf .git && git init && git config user.email \"qukoyk@users.noreply.github.com\" && git config user.name \"Qukoyk\" && git add . && git commit -m \"Deploy to GitHub Pages\" && git branch -M gh-pages && git remote add origin git@github.com:Qukoyk/miaomiao.git && git push origin gh-pages --force"
+    "deploy:redesign": "bash scripts/deploy-redesign.sh"
   },
   "dependencies": {
     "three": "^0.160.0"
@@ -15,6 +17,7 @@
   "devDependencies": {
     "@types/three": "^0.160.0",
     "typescript": "^5.3.3",
-    "vite": "^5.0.10"
+    "vite": "^5.0.10",
+    "vitest": "^1.6.0"
   }
 }

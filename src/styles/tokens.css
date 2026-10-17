@@ -1,0 +1,81 @@
+:root {
+  /* Night sky */
+  --night-0: #17112b;
+  --night-1: #221a3e;
+  --night-2: #2e2452;
+  --night-3: #3b3059;
+  --night-4: #4a3b6b;
+
+  /* Paper & ink */
+  --paper: #fffaf0;
+  --cream: #fff6e7;
+  --cream-2: #ffedd2;
+  --ink: #2b2140;
+  --ink-soft: #5c4c73;
+  --ink-faint: #8a7a9e;
+
+  /* Candy accents */
+  --pink: #ff9ebb;
+  --pink-deep: #ef7fa4;
+  --mint: #8fe2ce;
+  --lavender: #b8a7f2;
+  --gold: #f6c85f;
+  --gold-deep: #d9a83c;
+  --leaf: #6fbf9a;
+  --coral: #ff8a80;
+  --sky: #8fd3ff;
+
+  /* Semantic */
+  --success: #5ec9a3;
+  --danger: #ef6f7e;
+  --warning: #f0b34c;
+  --shadow-color: rgba(20, 12, 40, 0.42);
+  --shadow-soft: 0 10px 30px rgba(20, 12, 40, 0.22);
+  --shadow-card: 0 22px 60px rgba(20, 12, 40, 0.46);
+  --glow-pink: 0 0 24px rgba(255, 158, 187, 0.45);
+  --glow-gold: 0 0 22px rgba(246, 200, 95, 0.42);
+
+  /* Shape */
+  --radius-xs: 8px;
+  --radius-s: 12px;
+  --radius-m: 18px;
+  --radius-l: 26px;
+  --radius-xl: 34px;
+  --radius-pill: 999px;
+
+  /* Rhythm */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Type */
+  --font-sans: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC",
+    "Source Han Sans SC", "Hiragino Sans GB", "YouYuan", "Yuanti SC",
+    system-ui, -apple-system, sans-serif;
+  --text-xs: 12px;
+  --text-s: 14px;
+  --text-m: 16px;
+  --text-l: 20px;
+  --text-xl: 26px;
+  --text-2xl: 36px;
+  --text-3xl: 52px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast: 140ms;
+  --t-mid: 240ms;
+  --t-slow: 420ms;
+
+  /* Layers */
+  --z-canvas: 0;
+  --z-hud: 20;
+  --z-menu: 40;
+  --z-overlay: 60;
+  --z-hint: 90;
+}
