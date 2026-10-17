@@ -33,9 +33,10 @@ export class CameraRig {
   }
 
   applyLook(deltaX: number, deltaY: number): void {
-    this.yaw += deltaX * 0.0024
+    // 鼠标右移 = 视角向右；鼠标下移 = 视角向下（常见的第三人称习惯）。
+    this.yaw -= deltaX * 0.0024
     this.pitch = clamp(
-      this.pitch - deltaY * 0.002,
+      this.pitch + deltaY * 0.002,
       RULES.camera.pitchMin,
       RULES.camera.pitchMax
     )

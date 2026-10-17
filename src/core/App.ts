@@ -274,6 +274,8 @@ export class App {
       }),
       teleportGhost: (x: number, z: number) => this.session?.teleportGhost(x, z),
       setCameraYaw: (yaw: number) => this.session?.setCameraYaw(yaw),
+      getCameraLook: () => this.session?.getCameraLook() ?? null,
+      look: (dx: number, dy: number) => this.session?.applyLookDelta(dx, dy),
       forceRescue: (id: number) => {
         this.session?.getRules().forceRescue(id)
       },

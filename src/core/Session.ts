@@ -243,6 +243,14 @@ export class Session {
     this.cameraRig.setYaw(yaw)
   }
 
+  getCameraLook(): { yaw: number; pitch: number } {
+    return { yaw: this.cameraRig.yaw, pitch: this.cameraRig.pitch }
+  }
+
+  applyLookDelta(dx: number, dy: number): void {
+    this.cameraRig.applyLook(dx, dy)
+  }
+
   getAIStates(): Array<{
     id: number
     state: string
