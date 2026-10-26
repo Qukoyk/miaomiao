@@ -65,7 +65,7 @@ npm run deploy:redesign  # 构建并推送 dist/ 到 gh-pages-redesign（不碰 
 
 ### 角色
 
-- `entities/CharacterModel.ts`：程序化人偶角色。头部包含精修的脸型、发际线、中分刘海、侧发、眼睛/虹膜/高光、眉毛、鼻子、嘴与腮红；身体、手臂、腿、鞋袜和配饰独立构建。构造末尾会把每个动画组内部的静态网格按材质合并。`animate()` 程序化生成 idle/walk/run/crouch/jail/rescue/lunge/hit 姿态。
+- `entities/CharacterModel.ts`：程序化人偶角色。头部包含精修的脸型、分层头发（刘海/头顶/侧发/后脑/绑发/发饰）、眼睛/虹膜/高光、鼻子、嘴与腮红；身体、手臂、腿、鞋袜和配饰独立构建。构造末尾会把每个动画组内部的静态网格按材质合并。`animate()` 程序化生成 idle/walk/run/crouch/jail/rescue/lunge/hit 姿态。
 - `entities/Character.ts`：把 `HiderRecord` 与模型连接，处理朝向、动画状态、受击/扑击/关押/出局。
 - `entities/PlayerController.ts`：相机相对移动、体力、蹲下、鬼的扑击、命中后擦刀减速、受击加速、被关押时的呼救。
 - `entities/StatusBillboard.ts`：头顶 3 星星 + 3 关押绳结；纹理在角色 dispose 时释放。
