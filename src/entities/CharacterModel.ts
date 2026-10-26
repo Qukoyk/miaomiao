@@ -380,7 +380,7 @@ export class CharacterModel {
     hairCap.position.y = 0.02
     hairCap.rotation.x = -0.15
     hairCap.scale.set(1.02, 1.0, 0.99)
-    hairCap.castShadow = true
+    hairCap.castShadow = false
     this.headPivot.add(hairCap)
 
     // 发际线高光：几缕更浅的头发，避免整块头发像帽子
@@ -408,8 +408,8 @@ export class CharacterModel {
         this.assets.getGeometry('char-bang-v2', () => new THREE.SphereGeometry(0.09, 10, 8)),
         this.assets.getMaterial(hair, { roughness: 0.9 })
       )
-      bang.position.set(i * 0.075 + (i > 0 ? 0.008 : -0.008), 0.18 + Math.abs(i) * 0.006, 0.275 - Math.abs(i) * 0.006)
-      bang.scale.set(0.8, 0.7 + Math.abs(i) * 0.04, 0.42)
+      bang.position.set(i * 0.075 + (i > 0 ? 0.008 : -0.008), 0.205 + Math.abs(i) * 0.005, 0.252 - Math.abs(i) * 0.005)
+      bang.scale.set(0.78, 0.55 + Math.abs(i) * 0.03, 0.4)
       bang.rotation.z = -i * 0.07
       this.headPivot.add(bang)
     }
@@ -417,8 +417,8 @@ export class CharacterModel {
       this.assets.getGeometry('char-fringe-v2', () => new THREE.SphereGeometry(0.1, 10, 8)),
       this.assets.getMaterial(hair, { roughness: 0.9 })
     )
-    fringe.position.set(-0.18, 0.18, 0.27)
-    fringe.scale.set(1.35, 0.6, 0.42)
+    fringe.position.set(-0.18, 0.205, 0.252)
+    fringe.scale.set(1.3, 0.5, 0.4)
     fringe.rotation.z = 0.3
     this.headPivot.add(fringe)
 
@@ -510,14 +510,6 @@ export class CharacterModel {
       )
       shine2.position.set(side * 0.135, -0.012, 0.36)
       this.headPivot.add(shine2)
-
-      const brow = new THREE.Mesh(
-        this.assets.getGeometry('char-brow-v2', () => new THREE.BoxGeometry(0.09, 0.018, 0.02)),
-        this.assets.getMaterial(hair, { roughness: 0.9 })
-      )
-      brow.position.set(side * 0.115, 0.135, 0.3)
-      brow.rotation.z = side * -0.12
-      this.headPivot.add(brow)
 
       const blush = new THREE.Mesh(
         this.assets.getGeometry('char-blush-v2', () => new THREE.CircleGeometry(0.05, 14)),
