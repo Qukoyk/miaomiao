@@ -861,39 +861,52 @@
 .countdown-badge {
   position: fixed;
   left: 50%;
-  top: 33%;
+  top: 104px;
   z-index: 35;
   display: grid;
   place-items: center;
-  width: 96px;
-  height: 96px;
-  border: 3px solid rgba(255, 246, 231, 0.5);
-  border-radius: 50%;
-  background: rgba(255, 246, 231, 0.92);
+  width: auto;
+  min-width: 92px;
+  height: 46px;
+  padding: 0 20px;
+  border: 2px solid rgba(255, 246, 231, 0.48);
+  border-radius: var(--radius-pill);
+  background: rgba(255, 246, 231, 0.94);
   color: var(--ink);
-  font-size: 44px;
+  font-size: var(--text-l);
   font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  transform: translate(-50%, -50%);
+  letter-spacing: 0.08em;
+  transform: translateX(-50%);
   box-shadow:
-    0 0 0 12px rgba(246, 200, 95, 0.14),
-    0 24px 60px rgba(20, 12, 40, 0.4);
+    0 0 0 8px rgba(246, 200, 95, 0.12),
+    0 18px 44px rgba(20, 12, 40, 0.34);
   animation: count-pop 900ms var(--ease-spring) infinite;
   pointer-events: none;
+  white-space: nowrap;
 }
 
 @keyframes count-pop {
   0% {
-    transform: translate(-50%, -50%) scale(0.92);
-    opacity: 0.8;
+    transform: translateX(-50%) scale(0.94);
+    opacity: 0.82;
   }
   50% {
-    transform: translate(-50%, -50%) scale(1.04);
+    transform: translateX(-50%) scale(1.03);
     opacity: 1;
   }
   100% {
-    transform: translate(-50%, -50%) scale(0.98);
-    opacity: 0.85;
+    transform: translateX(-50%) scale(0.99);
+    opacity: 0.88;
+  }
+}
+
+@media (max-height: 560px) and (orientation: landscape) {
+  .countdown-badge {
+    top: 76px;
+    min-width: 80px;
+    height: 40px;
+    padding: 0 16px;
+    font-size: var(--text-m);
   }
 }
 

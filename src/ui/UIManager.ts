@@ -248,7 +248,7 @@ export class UIManager {
     if (countdown) {
       const show = state.countdown > 0
       countdown.hidden = !show
-      if (show) countdown.textContent = String(Math.max(1, Math.ceil(state.countdown)))
+      if (show) countdown.textContent = `准备 ${Math.max(1, Math.ceil(state.countdown))}`
     }
 
     const statusKey =

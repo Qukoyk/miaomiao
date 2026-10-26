@@ -370,16 +370,17 @@ export class CharacterModel {
       this.headPivot.add(ear)
     }
 
+    // 只保留头顶的发帽，下缘停在刘海上方，不再盖住眼睛。
     const hairCap = new THREE.Mesh(
       this.assets.getGeometry(
-        'char-hair-cap-v2',
-        () => new THREE.SphereGeometry(0.36, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.6)
+        'char-hair-top-v3',
+        () => new THREE.SphereGeometry(0.35, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.42)
       ),
       this.assets.getMaterial(hair, { roughness: 0.9 })
     )
-    hairCap.position.y = 0.02
-    hairCap.rotation.x = -0.15
-    hairCap.scale.set(1.02, 1.0, 0.99)
+    hairCap.position.y = 0.11
+    hairCap.rotation.x = -0.1
+    hairCap.scale.set(1.02, 0.98, 0.98)
     hairCap.castShadow = false
     this.headPivot.add(hairCap)
 
@@ -435,11 +436,11 @@ export class CharacterModel {
     }
 
     const backHair = new THREE.Mesh(
-      this.assets.getGeometry('char-backhair-v2', () => new THREE.SphereGeometry(0.24, 16, 12)),
+      this.assets.getGeometry('char-backhair-v3', () => new THREE.SphereGeometry(0.26, 18, 12)),
       this.assets.getMaterial(hair, { roughness: 0.9 })
     )
-    backHair.position.set(0, -0.01, -0.13)
-    backHair.scale.set(0.92, 0.95, 0.55)
+    backHair.position.set(0, -0.02, -0.12)
+    backHair.scale.set(0.92, 0.98, 0.6)
     this.headPivot.add(backHair)
 
     const ponytail = new THREE.Mesh(
