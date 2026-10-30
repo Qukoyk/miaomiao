@@ -370,11 +370,17 @@ export class CharacterModel {
       this.headPivot.add(ear)
     }
 
-    // 分层头发：后脑勺、头顶、侧发、刘海、高马尾/绑发、发饰分开构建。
+    // 头发：先铺一层包住头顶/两侧/后脑的发壳，再叠刘海、侧发、顶发和绑发。
     const hairMaterial = this.assets.getMaterial(hair, { roughness: 0.9 })
+    const hairLightMaterial = this.assets.getMaterial(
+      new THREE.Color(hair).lerp(new THREE.Color(0xffffff), 0.16).getHex(),
+      { roughness: 0.85 }
+    )
+    const hairLock = this.assets.getGeometry(
+      'char-hair-lock-v5',
+      () => new THREE.SphereGeometry(1, 18, 14)
+    )
     const addHair = (
-      key: string,
-      radius: number,
       x: number,
       y: number,
       z: number,
@@ -383,148 +389,152 @@ export class CharacterModel {
       sz: number,
       rx = 0,
       ry = 0,
-      rz = 0
+      rz = 0,
+      material: THREE.Material = hairMaterial
     ): THREE.Mesh => {
-      const mesh = new THREE.Mesh(
-        this.assets.getGeometry(`char-${key}-v4`, () => new THREE.SphereGeometry(radius, 16, 12)),
-        hairMaterial
-      )
+      const mesh = new THREE.Mesh(hairLock, material)
       mesh.position.set(x, y, z)
       mesh.scale.set(sx, sy, sz)
       mesh.rotation.set(rx, ry, rz)
+      mesh.castShadow = true
       this.headPivot.add(mesh)
       return mesh
     }
 
-    // 后脑勺 + 后颈发量
-    addHair('hair-back', 0.29, 0, -0.03, -0.15, 0.95, 1.15, 0.6)
-    addHair('hair-nape', 0.18, 0, -0.2, -0.11, 1.0, 0.75, 0.55)
+    // 发壳：从额头两侧包到后颈，正面留出脸部开口，侧面不再露头皮。
+    const shell = new THREE.Mesh(
+      this.assets.getGeometry(
+        'char-hair-shell-v5',
+        () =>
+          new THREE.SphereGeometry(
+            0.352,
+            32,
+            22,
+            Math.PI / 2 + 0.94,
+            Math.PI * 2 - 1.88,
+            0,
+            Math.PI * 0.78
+          )
+      ),
+      hairMaterial
+    )
+    shell.position.set(0, 0.012, -0.012)
+    shell.scale.set(1.02, 1.03, 0.98)
+    shell.castShadow = true
+    this.headPivot.add(shell)
 
-    // 头顶体积：三块交叠，做出侧分和蓬松感
-    addHair('hair-crown-main', 0.27, 0.0, 0.25, -0.03, 1.12, 0.5, 1.0)
-    addHair('hair-crown-left', 0.18, -0.15, 0.23, 0.02, 1.0, 0.6, 0.9)
-    addHair('hair-crown-right', 0.17, 0.15, 0.22, 0.015, 1.0, 0.6, 0.9)
+    // 顶发：盖住发壳开口上缘，并压出蓬松的头顶。
+    addHair(0, 0.27, -0.03, 0.315, 0.16, 0.3)
+    addHair(-0.15, 0.25, 0, 0.16, 0.12, 0.22)
+    addHair(0.15, 0.25, 0, 0.16, 0.12, 0.22)
+    addHair(0, 0.28, 0.13, 0.24, 0.1, 0.16, -0.18, 0, 0, hairLightMaterial)
 
-    // 刘海：六缕侧分 + 两侧长刘海
+    // 刘海：七束扁平发片贴着额头，中间短、两侧长。
     for (let i = -3; i <= 3; i++) {
-      if (i === 0) continue
+      const t = Math.abs(i) / 3
       addHair(
-        `hair-bang-${i}`,
-        0.09,
-        i * 0.07 + 0.015,
-        0.18 + Math.abs(i) * 0.005,
-        0.265 - Math.abs(i) * 0.005,
-        0.8,
-        0.62 + Math.abs(i) * 0.04,
-        0.4,
+        i * 0.075,
+        0.22 - t * 0.02,
+        0.292 - t * 0.012,
+        0.065,
+        0.09 + t * 0.01,
+        0.028,
+        -0.12,
         0,
-        0,
-        -i * 0.08
+        -i * 0.05
       )
     }
-    addHair('hair-fringe-left', 0.1, -0.19, 0.18, 0.27, 1.35, 0.55, 0.4, 0, 0, 0.3)
-    addHair('hair-fringe-right', 0.07, 0.2, 0.17, 0.265, 0.9, 0.5, 0.38, 0, 0, -0.2)
 
-    // 侧发：从太阳穴垂到下颌
+    // 鬓角：把刘海和侧发连起来。
     for (const side of [-1, 1]) {
-      addHair(`hair-side-${side}`, 0.08, side * 0.3, -0.02, 0.0, 0.45, 1.6, 0.5, 0, 0, side * 0.1)
-      addHair(`hair-side-layer-${side}`, 0.06, side * 0.25, 0.1, 0.12, 0.5, 0.9, 0.45, 0, 0, side * 0.2)
+      addHair(side * 0.255, 0.16, 0.245, 0.05, 0.12, 0.035, -0.1, 0, side * 0.25)
     }
 
-    // 高马尾：从头顶后方垂下
-    addHair('hair-pony-1', 0.09, 0, 0.24, -0.24, 0.7, 1.2, 0.7)
-    addHair('hair-pony-2', 0.1, 0, 0.16, -0.3, 0.7, 1.2, 0.7)
-    addHair('hair-pony-3', 0.085, 0, 0.06, -0.34, 0.7, 1.2, 0.7)
-    addHair('hair-pony-4', 0.06, 0, -0.02, -0.36, 0.7, 1.2, 0.7)
+    // 侧发：从太阳穴垂到下颌，盖住发壳前面边缘。
+    for (const side of [-1, 1]) {
+      addHair(side * 0.285, 0.09, 0.17, 0.045, 0.14, 0.055, -0.05, 0, side * 0.2)
+      addHair(side * 0.305, -0.06, 0.105, 0.055, 0.18, 0.075, 0, 0, side * 0.06)
+    }
 
-    // 绑发：发绳 + 小蝴蝶结
-    const tie = new THREE.Mesh(
-      this.assets.getGeometry('char-hair-tie-v4', () => new THREE.TorusGeometry(0.075, 0.02, 8, 18)),
-      this.assets.getMaterial(accent, { roughness: 0.7 })
-    )
-    tie.position.set(0, 0.26, -0.24)
-    tie.rotation.x = Math.PI / 2
-    this.headPivot.add(tie)
+    // 后脑分层和后颈碎发。
+    addHair(-0.14, -0.05, -0.32, 0.06, 0.13, 0.035, 0, 0.25, -0.1)
+    addHair(0.14, -0.05, -0.32, 0.06, 0.13, 0.035, 0, -0.25, 0.1)
+    addHair(0, -0.27, -0.15, 0.14, 0.08, 0.07)
+
+    // 高马尾：扎在头顶后方，整段垂在发壳外侧。
+    addHair(0, 0.24, -0.3, 0.11, 0.08, 0.09)
+    addHair(0, 0.1, -0.36, 0.065, 0.13, 0.07)
+    addHair(-0.01, -0.03, -0.39, 0.06, 0.12, 0.065)
+    addHair(-0.02, -0.15, -0.4, 0.052, 0.11, 0.058)
+    addHair(-0.03, -0.25, -0.395, 0.04, 0.09, 0.045)
+    addHair(-0.035, -0.33, -0.38, 0.028, 0.06, 0.03)
+
+    // 发绳 + 蝴蝶结，放在马尾根部。
     for (const s of [-1, 1]) {
       const lobe = new THREE.Mesh(
-        this.assets.getGeometry('char-hair-tie-lobe-v4', () => new THREE.SphereGeometry(0.07, 10, 8)),
+        this.assets.getGeometry('char-hair-tie-lobe-v5', () => new THREE.SphereGeometry(0.05, 10, 8)),
         this.assets.getMaterial(accent, { roughness: 0.65 })
       )
-      lobe.position.set(s * 0.06, 0.27, -0.27)
-      lobe.scale.set(1.2, 0.8, 0.45)
+      lobe.position.set(s * 0.06, 0.25, -0.39)
+      lobe.scale.set(1.1, 0.8, 0.4)
+      lobe.rotation.z = s * 0.2
       this.headPivot.add(lobe)
     }
     const tieKnot = new THREE.Mesh(
-      this.assets.getGeometry('char-hair-tie-knot-v4', () => new THREE.SphereGeometry(0.03, 8, 6)),
+      this.assets.getGeometry('char-hair-tie-knot-v5', () => new THREE.SphereGeometry(0.024, 8, 6)),
       this.assets.getMaterial(COLORS.gold)
     )
-    tieKnot.position.set(0, 0.27, -0.3)
+    tieKnot.position.set(0, 0.25, -0.415)
     this.headPivot.add(tieKnot)
 
-    // 发丝高光
-    const hairLight = new THREE.Color(hair).lerp(new THREE.Color(0xffffff), 0.2).getHex()
-    const highlightMaterial = this.assets.getMaterial(hairLight, { roughness: 0.85 })
-    const highlights: Array<[number, number, number, number, number, number]> = [
-      [-0.16, 0.29, 0.08, 0.05, 0.14, -0.4],
-      [0.02, 0.32, 0.02, 0.04, 0.16, -0.1],
-      [0.17, 0.285, 0.05, 0.045, 0.12, 0.35]
-    ]
-    for (const [x, y, z, sx, sy, rz] of highlights) {
-      const streak = new THREE.Mesh(
-        this.assets.getGeometry('char-hair-streak-v4', () => new THREE.SphereGeometry(1, 8, 6)),
-        highlightMaterial
-      )
-      streak.position.set(x, y, z)
-      streak.scale.set(sx, sy, 0.025)
-      streak.rotation.z = rz
-      this.headPivot.add(streak)
-    }
-
-    // 眼睛：更完整的眼白、虹膜、瞳孔与高光
-    const irisColor = new THREE.Color(hair).lerp(new THREE.Color(0xffffff), 0.26).getHex()
+    // 眼睛：压扁并嵌进脸里，避免从侧面看像贴上去的假眼。
+    const irisColor = 0x6e4433
     for (const side of [-1, 1]) {
       const white = new THREE.Mesh(
-        this.assets.getGeometry('char-eye-white-v2', () => new THREE.SphereGeometry(0.085, 16, 12)),
+        this.assets.getGeometry('char-eye-white-v3', () => new THREE.SphereGeometry(0.078, 16, 12)),
         this.assets.getMaterial(COLORS.paper, { roughness: 0.35 })
       )
-      white.position.set(side * 0.115, 0.015, 0.292)
-      white.scale.set(1.0, 1.15, 0.45)
+      white.position.set(side * 0.115, 0.005, 0.293)
+      white.scale.set(1.0, 1.12, 0.2)
       this.headPivot.add(white)
 
       const iris = new THREE.Mesh(
-        this.assets.getGeometry('char-iris-v2', () => new THREE.SphereGeometry(0.046, 14, 10)),
+        this.assets.getGeometry('char-iris-v3', () => new THREE.SphereGeometry(0.047, 14, 10)),
         this.assets.getMaterial(irisColor, { roughness: 0.2 })
       )
-      iris.position.set(side * 0.115, 0.012, 0.326)
-      iris.scale.set(1.0, 1.12, 0.35)
+      iris.position.set(side * 0.115, 0.002, 0.304)
+      iris.scale.set(1.0, 1.1, 0.18)
       this.headPivot.add(iris)
 
       const pupil = new THREE.Mesh(
-        this.assets.getGeometry('char-pupil-v2', () => new THREE.SphereGeometry(0.023, 12, 10)),
+        this.assets.getGeometry('char-pupil-v3', () => new THREE.SphereGeometry(0.026, 12, 10)),
         this.assets.getMaterial(COLORS.ink, { roughness: 0.15 })
       )
-      pupil.position.set(side * 0.115, 0.012, 0.345)
-      pupil.scale.set(1.0, 1.1, 0.3)
+      pupil.position.set(side * 0.115, 0.002, 0.31)
+      pupil.scale.set(1.0, 1.05, 0.15)
       this.headPivot.add(pupil)
 
       const shine = new THREE.Mesh(
-        this.assets.getGeometry('char-shine-v2', () => new THREE.SphereGeometry(0.016, 8, 6)),
+        this.assets.getGeometry('char-shine-v3', () => new THREE.SphereGeometry(0.014, 8, 6)),
         this.assets.getMaterial(COLORS.paper)
       )
-      shine.position.set(side * 0.1, 0.05, 0.36)
+      shine.position.set(side * 0.102, 0.038, 0.314)
+      shine.scale.set(1.0, 1.0, 0.35)
       this.headPivot.add(shine)
       const shine2 = new THREE.Mesh(
-        this.assets.getGeometry('char-shine-small-v2', () => new THREE.SphereGeometry(0.008, 6, 5)),
+        this.assets.getGeometry('char-shine-small-v3', () => new THREE.SphereGeometry(0.007, 6, 5)),
         this.assets.getMaterial(COLORS.paper)
       )
-      shine2.position.set(side * 0.135, -0.012, 0.36)
+      shine2.position.set(side * 0.13, -0.02, 0.315)
+      shine2.scale.set(1.0, 1.0, 0.35)
       this.headPivot.add(shine2)
 
       const blush = new THREE.Mesh(
-        this.assets.getGeometry('char-blush-v2', () => new THREE.CircleGeometry(0.05, 14)),
-        this.assets.getMaterial(COLORS.pink, { transparent: true, opacity: 0.52, roughness: 0.9 })
+        this.assets.getGeometry('char-blush-v3', () => new THREE.CircleGeometry(0.04, 14)),
+        this.assets.getMaterial(COLORS.pink, { transparent: true, opacity: 0.45, roughness: 0.9 })
       )
-      blush.position.set(side * 0.2, -0.075, 0.29)
+      blush.position.set(side * 0.175, -0.06, 0.258)
+      blush.rotation.y = side * 0.55
       this.headPivot.add(blush)
     }
 
@@ -533,22 +543,22 @@ export class CharacterModel {
       this.assets.getGeometry('char-nose-v2', () => new THREE.SphereGeometry(0.018, 8, 6)),
       this.assets.getMaterial(noseColor, { roughness: 0.85 })
     )
-    nose.position.set(0, -0.04, 0.33)
+    nose.position.set(0, -0.04, 0.302)
     nose.scale.set(1.0, 0.8, 0.6)
     this.headPivot.add(nose)
 
     const mouth = new THREE.Mesh(
-      this.assets.getGeometry('char-mouth-v2', () => new THREE.TorusGeometry(0.06, 0.012, 6, 14, Math.PI)),
+      this.assets.getGeometry('char-mouth-v2', () => new THREE.TorusGeometry(0.055, 0.011, 6, 14, Math.PI)),
       this.assets.getMaterial(COLORS.pinkDeep)
     )
-    mouth.position.set(0, -0.115, 0.326)
+    mouth.position.set(0, -0.115, 0.298)
     mouth.rotation.z = Math.PI
     this.headPivot.add(mouth)
     const lip = new THREE.Mesh(
-      this.assets.getGeometry('char-lip-v2', () => new THREE.SphereGeometry(0.02, 8, 6)),
+      this.assets.getGeometry('char-lip-v2', () => new THREE.SphereGeometry(0.018, 8, 6)),
       this.assets.getMaterial(COLORS.pink)
     )
-    lip.position.set(0, -0.14, 0.332)
+    lip.position.set(0, -0.138, 0.302)
     lip.scale.set(1.2, 0.35, 0.5)
     this.headPivot.add(lip)
   }
@@ -595,38 +605,50 @@ export class CharacterModel {
 
     if (accessory === 'bow') {
       const bow = new THREE.Group()
-      bow.position.set(0.27, 0.22, 0.04)
-      bow.rotation.z = -0.2
+      bow.position.set(-0.21, 0.38, 0.1)
+      bow.rotation.set(0.15, -0.35, 0.25)
       this.headPivot.add(bow)
       for (const side of [-1, 1]) {
         const lobe = new THREE.Mesh(
-          this.assets.getGeometry('char-bow', () => new THREE.SphereGeometry(0.08, 8, 6)),
+          this.assets.getGeometry('char-bow', () => new THREE.SphereGeometry(0.055, 8, 6)),
           this.assets.getMaterial(accent, { roughness: 0.6 })
         )
-        lobe.position.set(side * 0.07, 0, 0)
-        lobe.scale.set(1.2, 0.8, 0.5)
+        lobe.position.set(side * 0.085, 0, 0)
+        lobe.scale.set(1.0, 0.8, 0.45)
+        lobe.rotation.z = side * 0.22
         bow.add(lobe)
       }
       const knot = new THREE.Mesh(
-        this.assets.getGeometry('char-bow-knot', () => new THREE.SphereGeometry(0.04, 8, 6)),
+        this.assets.getGeometry('char-bow-knot', () => new THREE.SphereGeometry(0.026, 8, 6)),
         this.assets.getMaterial(COLORS.gold)
       )
       bow.add(knot)
     } else if (accessory === 'beret') {
+      const hat = new THREE.Group()
+      hat.position.set(0.03, 0.37, -0.02)
+      hat.rotation.set(0, 0, -0.12)
+      this.headPivot.add(hat)
       const beret = new THREE.Mesh(
-        this.assets.getGeometry('char-beret', () => new THREE.SphereGeometry(0.3, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.42)),
+        this.assets.getGeometry('char-beret', () => new THREE.SphereGeometry(0.28, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.5)),
         this.assets.getMaterial(accent, { roughness: 0.7 })
       )
-      beret.position.set(0.04, 0.37, -0.02)
-      beret.rotation.z = -0.16
-      beret.scale.set(1, 0.5, 1)
-      this.headPivot.add(beret)
+      beret.scale.set(1, 0.68, 1)
+      hat.add(beret)
+      const brim = new THREE.Mesh(
+        this.assets.getGeometry('char-beret-brim', () => new THREE.TorusGeometry(0.282, 0.02, 8, 24)),
+        this.assets.getMaterial(
+          new THREE.Color(accent).multiplyScalar(0.85).getHex(),
+          { roughness: 0.75 }
+        )
+      )
+      brim.rotation.x = Math.PI / 2
+      hat.add(brim)
       const stem = new THREE.Mesh(
         this.assets.getGeometry('char-beret-stem', () => new THREE.CylinderGeometry(0.018, 0.018, 0.07, 6)),
         this.assets.getMaterial(COLORS.gold)
       )
-      stem.position.set(0.04, 0.53, -0.02)
-      this.headPivot.add(stem)
+      stem.position.y = 0.28 * 0.68 + 0.035
+      hat.add(stem)
     } else if (accessory === 'scarf') {
       const scarf = new THREE.Mesh(
         this.assets.getGeometry('char-scarf', () => new THREE.TorusGeometry(0.2, 0.055, 7, 18)),
@@ -659,17 +681,17 @@ export class CharacterModel {
       }
     } else if (accessory === 'headband') {
       const band = new THREE.Mesh(
-        this.assets.getGeometry('char-headband', () => new THREE.TorusGeometry(0.34, 0.03, 6, 20)),
+        this.assets.getGeometry('char-headband', () => new THREE.TorusGeometry(0.335, 0.025, 6, 20)),
         this.assets.getMaterial(accent, { roughness: 0.7 })
       )
-      band.position.y = 0.17
+      band.position.y = 0.21
       band.rotation.x = Math.PI / 2
       this.headPivot.add(band)
       const star = new THREE.Mesh(
-        this.assets.getGeometry('char-star', () => new THREE.OctahedronGeometry(0.09, 0)),
+        this.assets.getGeometry('char-star', () => new THREE.OctahedronGeometry(0.06, 0)),
         this.assets.getMaterial(accent, { emissive: accent, emissiveIntensity: 0.35 })
       )
-      star.position.set(0.28, 0.26, 0.05)
+      star.position.set(0.16, 0.24, 0.33)
       this.headPivot.add(star)
     }
   }
